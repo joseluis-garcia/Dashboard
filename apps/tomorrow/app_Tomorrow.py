@@ -1,15 +1,18 @@
 import sys
 from pathlib import Path
 
-# Añadir la raíz del repo al PYTHONPATH
-repo_root = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(repo_root))
+
 
 import streamlit as st
 import pandas as pd
 import comun.date_conditions as dc
 from datetime import date, datetime, timedelta
 import pytz
+
+# Añadir la raíz del repo al PYTHONPATH
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
+
 from comun.async_tasks import run_async, async_placeholder
 from comun.get_ESIOS_data import get_ESIOS_energy, get_ESIOS_spot
 from comun.get_user_location import borrar_user_location, get_user_location
