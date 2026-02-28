@@ -31,7 +31,6 @@ def grafico_prices_forecast(df_precios):
     y_max = max(df_precios["precio_estimado"].max(), df_precios["precio_spot"].max()) 
     fig_estimacion = go.Figure()  
     # Añadir rectángulos en los fines de semana
-    print("Añadiendo rectángulos para fines de semana en el gráfico de precios...", dc.weekends)
     for start, end in dc.weekends:
         fig_estimacion.add_shape(
             type="rect",

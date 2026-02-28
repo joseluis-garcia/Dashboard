@@ -35,14 +35,12 @@ def get_festivos(rango):
 # Generar rangos de fines de semana
 #==========================
 def get_weekends(rango):
-    print(f"Calculando fines de semana para el rango: {rango['start_date']} a {rango['end_date']}")
     weekends = []
     for d in pd.date_range(rango["start_date"], rango["end_date"]):
         if d.weekday() >= 5:  # 5 = sábado, 6 = domingo
             start = pd.Timestamp(d).normalize()
             end = start + pd.Timedelta(days=1)
             weekends.append((start, end))
-    print(f"Fines de semana calculados: {weekends}")
     return weekends
 
 # ==========================

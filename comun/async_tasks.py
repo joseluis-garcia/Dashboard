@@ -20,7 +20,6 @@ def run_async(task_name, func, *args, **kwargs):
     def wrapper():
         try:
             result = func(*args, **kwargs)
-            print("Vuelta en wrapper", result.head())
             container[task_name]["result"] = result
             container[task_name]["status"] = "done"
         except Exception as e:

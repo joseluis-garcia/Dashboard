@@ -102,7 +102,6 @@ def get_meteo_7D(lat, lon, azimuth):
     try:
         responses = openmeteo.weather_api(url, params=params)
     except Exception as e:
-        print(f"Error al obtener datos de Open-Meteo: {e}")
         return None, str(e)  # Devuelve un DataFrame vacío en caso de error
 
     # Process first location. Add a for-loop for multiple locations or weather models
