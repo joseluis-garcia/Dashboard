@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+# Añadir la raíz del repo al PYTHONPATH
+repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo_root))
+
 import streamlit as st
 import pandas as pd
 import comun.date_conditions as dc
@@ -10,13 +17,6 @@ from comun.get_prices_Som import grafico_prices_Som, get_prices_Som
 from comun.get_prices_forecast import get_prices_forecast, grafico_prices_forecast
 from comun.get_openmeteo import (get_meteo_7D, get_meteo_hours, grafica_meteo)
 from comun.get_PVGIS import (get_PVGIS_data, grafico_PVGIS)
-
-import sys
-from pathlib import Path
-
-# Añadir la raíz del repo al PYTHONPATH
-repo_root = Path(__file__).resolve().parents[1]
-sys.path.append(str(repo_root))
 
 Puerta_Sol = dict(lat=40.4169, lon=-3.7033)
 
