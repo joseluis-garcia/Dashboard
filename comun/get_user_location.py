@@ -1,4 +1,4 @@
-from turtle import st
+from streamlit import st
 from streamlit_js_eval import streamlit_js_eval
 # ---------------------------------------------------------
 # Verificamos si hay un coockie user_location de la sesión actual, si no lo hay pedimos geolocalización al usuario y guardamos la latitud y longitud en una cookie para futuras visitas. 
