@@ -26,7 +26,7 @@ def grafico_PVGIS(df, lat, lon, fecha):
     df["hora"] = df["hora"].apply(lambda h: f"{int(h):02d}")
     horas_completas = [f"{h:02d}" for h in range(24)]
 
-    sun_data = getSunData(lat, lon, fecha) 
+    sun_data = getSunData(lat, lon, fecha, tz_local="Europe/Madrid") 
     fig = go.Figure()
 
     # eje X numérico

@@ -37,10 +37,6 @@ end_date = today + timedelta(days=10)
 # Para probar fechas fijas
 # start_date = tz.localize( datetime(2026, 1, 1).replace(minute=0, second=0, microsecond=0))
 # end_date = tz.localize( datetime(2026, 1, 8).replace(minute=0, second=0, microsecond=0))
-# rango = {
-#     "start_date": start_date.isoformat(),
-#     "end_date": end_date.isoformat(),
-# }
 rango = {
     "start_date": start_date,
     "end_date": end_date,

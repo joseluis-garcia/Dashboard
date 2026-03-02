@@ -18,7 +18,6 @@ def grafico_prices_Som(df):
         for v in df["hoy"] 
     ]
     df["hora"] = df["hora"].apply(lambda h: f"{int(h):02d}")
-    horas_completas = [f"{h:02d}" for h in range(24)]
     fig = go.Figure()
 
     # eje X numérico
@@ -109,7 +108,6 @@ def get_prices_Som():
     prices = data["data"]["curves"]["price_euros_kwh"][-48:]  # lista de 48 valores
     today = prices[:24]
     tomorrow = prices[24:]
-
     df = pd.DataFrame({
         "hora": range(24),
         "hoy": today,

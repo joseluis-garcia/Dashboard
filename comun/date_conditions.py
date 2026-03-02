@@ -1,4 +1,4 @@
-from datetime import  datetime
+from datetime import  datetime, timedelta
 import pandas as pd
 import pytz
 import holidays
@@ -80,22 +80,56 @@ def es_festivo_o_fin_de_semana(fecha) -> bool:
 
 #==========================
 # Función para obtener datos de salida del sol (amanecer, atardecer, etc) usando la librería ephem.
+# Devuelve en hora local Europe/Madrid
 #==========================
-def getSunData(lat, lon, date):
+def getSunData(lat, lon, date, tz_local="Europe/Madrid"):
     # Configurar observador
     observer = ephem.Observer()
     observer.lat = str(lat)
     observer.lon = str(lon)
-    observer.date = date  
+    observer.date = date
+
     sun = ephem.Sun(observer)
-    sunrise = observer.next_rising(sun).datetime().replace(tzinfo=ZoneInfo("UTC"))
-    sunrise = sunrise.astimezone(ZoneInfo("Europe/Madrid"))
-    sunset = observer.next_setting(sun).datetime().replace(tzinfo=ZoneInfo("UTC"))
-    sunset = sunset.astimezone(ZoneInfo("Europe/Madrid"))
-    noon = observer.next_transit(sun).datetime().replace(tzinfo=ZoneInfo("UTC"))
-    noon = noon.astimezone(ZoneInfo("Europe/Madrid"))
+    sunrise = observer.next_rising(sun).datetime()
+    sunset = observer.next_setting(sun).datetime()
+    noon = observer.next_transit(sun).datetime()
+    sunrise = sunrise.replace(tzinfo=ZoneInfo("UTC"))
+    sunset = sunset.replace(tzinfo=ZoneInfo("UTC"))
+    noon = noon.replace(tzinfo=ZoneInfo("UTC"))
+    if tz_local != "UTC":
+        sunrise = sunrise.astimezone(ZoneInfo(tz_local))
+        sunset = sunset.astimezone(ZoneInfo(tz_local))
+        noon = noon.astimezone(ZoneInfo(tz_local))
     return {    
         "sunrise": sunrise.hour + sunrise.minute/60,
         "sunset": sunset.hour + sunset.minute/60,
         "noon": noon.hour + noon.minute/60
     }
+
+
+# =========================
+# FUNCION PARA OBTENER HORAS DE SALIDA Y PUESTA DEL SOL
+# coord: diccionario con latitud y longitud {"lat": 40.4169, "lon": -3.7033}
+# start: fecha de inicio
+# end: fecha de fin
+# delta: intervalo en días
+# tz_local: zona horaria para convertir las horas (por defecto "Europe/Madrid", también puede ser "UTC")
+# return: dataframe con columnas "date", "sunrise_hour" y "sunset_hour"
+# =========================
+@st.cache_data
+def getSunDataRange(coord, start, end, delta, tz_local="Europe/Madrid"):
+
+    rows = []
+    d = start  
+
+    while d <= end:
+        sun_data = getSunData(coord["lat"], coord["lon"], d, tz_local)
+        rows.append({
+            "date": d,
+            "sunrise_hour": sun_data["sunrise"],
+            "sunset_hour": sun_data["sunset"]
+        })
+
+        d += timedelta(days=delta)
+
+    return pd.DataFrame(rows)

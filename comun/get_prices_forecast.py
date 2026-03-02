@@ -8,6 +8,9 @@ from comun.costes_regulados import costes_regulados
 slope = -144.27
 intercept = 127.12
 
+#==========================
+# Función para obtener el precio estimado a partir de la energía renovable y la demanda previsiones de ESIOS, y el precio spot diario de ESIOS. Se añaden los costes regulados para obtener el precio final estimado.
+#==========================
 def get_prices_forecast(energy, spot):    
     df_final = energy.merge(spot, on="datetime", how="outer")
     df_final["renovable"] = df_final["eolica"] + df_final["solar"]
@@ -19,7 +22,6 @@ def get_prices_forecast(energy, spot):
     df_final["precio_estimado"] += df_final["costes_regulados"]
     df_final["precio_spot"] += df_final["costes_regulados"]
     return df_final
-
 
 @st.cache_data
 def grafico_prices_forecast(df_precios):
