@@ -1,5 +1,6 @@
     
 from comun.get_ESIOS_indicator import get_indicator
+import comun.date_conditions as dc
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -137,6 +138,6 @@ def grafico_ESIOS_energy(df_energia):
             ),
 
         hovermode="x unified")
-    
+    fig.add_vline(x=dc.today, line_width=4, line_dash="dash", line_color="green", name="Hoy")
     fig.update_xaxes( dtick="D1", tickangle=45)
     return fig

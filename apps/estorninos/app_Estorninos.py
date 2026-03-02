@@ -132,6 +132,8 @@ with tab_summary:
 #     trace1 = px_to_trace(fig_precios, colorbar_side="left", colorscale="Turbo")
 #     trace2 = px_to_trace(fig_temperaturas, colorbar_side="right", colorscale="RdBu_r")
 
+    fig_precios.data[0].colorbar.update(x=0.15,y=0.53,xref="container")
+    fig_temperaturas.data[0].colorbar.update(x=1.1,y=0.53,xref="container")
     # Añadir al subplot
     fig_comb.add_trace(fig_precios.data[0], row=1, col=1)
     fig_comb.add_trace(fig_temperaturas.data[0], row=1, col=3)
