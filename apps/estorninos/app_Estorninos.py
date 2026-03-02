@@ -7,7 +7,7 @@ from plotly.subplots import make_subplots
 import pytz
 
 # Añadir la raíz del repo al PYTHONPATH
-repo_root = Path(__file__).resolve().parents[1]
+repo_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(repo_root))
 import comun.date_conditions as dc
 from comun.get_ESIOS_data import get_ESIOS_energy, get_ESIOS_spot, grafico_ESIOS_energy

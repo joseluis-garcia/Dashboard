@@ -2,12 +2,11 @@ import sys
 from pathlib import Path
 import streamlit as st
 import pandas as pd
-
 from datetime import date, datetime, timedelta
 import pytz
 
 # Añadir la raíz del repo al PYTHONPATH
-repo_root = Path(__file__).resolve().parents[1]
+repo_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(repo_root))
 import comun.date_conditions as dc
 from comun.async_tasks import run_async, async_placeholder
