@@ -1,9 +1,16 @@
+import sys
+from pathlib import Path
 import streamlit as st
-import comun.date_conditions as dc
 from datetime import date, datetime, timedelta
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pytz
+
+# Añadir la raíz del repo al PYTHONPATH
+repo_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(repo_root))
+
+import comun.date_conditions as dc
 from comun.get_ESIOS_data import get_ESIOS_energy, get_ESIOS_spot, grafico_ESIOS_energy
 from comun.get_prices_forecast import get_prices_forecast, grafico_prices_forecast
 from historico_spot import load_historico_precios_spot
