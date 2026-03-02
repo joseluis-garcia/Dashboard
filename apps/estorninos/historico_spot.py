@@ -20,7 +20,7 @@ def load_historico_precios_spot(estaciones=True, efemerides=True):
     BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 # Ruta al JSON dentro de comun/
     repo_root = Path(__file__).resolve().parents[2]
-    JSON_PATH = os.path.join(repo_root, "data\\spot.csv")
+    JSON_PATH = repo_root / "data" / "spot.csv"
   
     df_spot = pd.read_csv(
         JSON_PATH,
