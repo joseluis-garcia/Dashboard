@@ -1,5 +1,4 @@
-    
-from pandas import pd
+import pandas as pd
 from comun.get_ESIOS_indicator import get_indicator
 import comun.date_conditions as dc
 import plotly.graph_objects as go

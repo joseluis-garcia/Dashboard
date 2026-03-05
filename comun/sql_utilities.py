@@ -8,7 +8,6 @@ def init_db():
     repo_root = Path(__file__).resolve().parents[1]
     DB_PATH = repo_root / "data" / "measures.db"
 
-    print(f"Conectando a la base de datos en: {DB_PATH}")
     # Connect to SQLite database
     try:
         conn = sqlite3.connect(DB_PATH)
