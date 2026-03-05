@@ -28,9 +28,6 @@ def grafico_prices_forecast(df_precios):
 # =========================
 # Prepara gráfico de precios
 # =========================
-
-    y_min = min(df_precios["precio_estimado"].min(), df_precios["precio_spot"].min())
-    y_max = max(df_precios["precio_estimado"].max(), df_precios["precio_spot"].max()) 
     fig_estimacion = go.Figure()  
     # Añadir rectángulos en los fines de semana
     for start, end in dc.weekends:
@@ -38,16 +35,14 @@ def grafico_prices_forecast(df_precios):
             type="rect",
             x0=start,
             x1=end,
-            y0=y_min - (y_max - y_min) * 0.1,  # un poco por debajo del mínimo
-            y1=y_max + (y_max - y_min) * 0.1,          # altura pequeña sobre el eje
+            y0=0,
+            y1=1,
             xref="x",
-            yref="y",
+            yref="paper",
             line=dict(color="rgba(150,150,150,0.6)", width=1.5),
             fillcolor="rgba(100,100,100,0.2)",
             layer="above"
     )
-
-
     # Añadir rectángulos en los días festivos
     for festivo in dc.festivos:
         fig_estimacion.add_vrect(
@@ -56,7 +51,7 @@ def grafico_prices_forecast(df_precios):
             opacity=0.15,
             line_width=0
         )
-
+    # Curva de precio estimado
     fig_estimacion.add_trace(go.Scatter(
         x=df_precios["datetime"],
         y=df_precios["precio_estimado"],
@@ -64,7 +59,7 @@ def grafico_prices_forecast(df_precios):
         name="Precio estimado",
         line=dict(color="orange", width=2)
     ))
-
+    # Curva de precio spot
     fig_estimacion.add_trace(go.Scatter(
         x=df_precios["datetime"],
         y=df_precios["precio_spot"],
@@ -72,7 +67,6 @@ def grafico_prices_forecast(df_precios):
         name="Precio spot",
         line=dict(color="blue", width=2)
     ))
-
     fig_estimacion.update_layout(
         legend=dict(
             orientation="h",          # horizontal
@@ -91,6 +85,6 @@ def grafico_prices_forecast(df_precios):
         tickangle=45, 
         showgrid=True, 
         gridcolor="rgba(255,255,255,0.15)")
-
+    # Línea vertical para marcar el día actual
     fig_estimacion.add_vline(x=dc.today, line_width=4, line_dash="dash", line_color="green", name="Hoy")
     return fig_estimacion

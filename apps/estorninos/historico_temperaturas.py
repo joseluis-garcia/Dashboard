@@ -8,8 +8,6 @@ import plotly.graph_objects as go
 from comun.date_conditions import getSunDataRange
 from datetime import date
 
-
-
 @st.cache_data
 def load_historico_temperaturas(estaciones=True, efemerides=True):
 
@@ -17,12 +15,9 @@ def load_historico_temperaturas(estaciones=True, efemerides=True):
 #
     Puerta_Sol = dict(lat=40.4169, lon=-3.7033)
 
-# Directorio donde está este archivo (comun/) 
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 # Ruta al JSON dentro de comun/
     repo_root = Path(__file__).resolve().parents[2]
     CSV_PATH = repo_root / "data" / "temperaturas.csv"
-
 #==========================
 # Datos historicos de temperaturas para heatmap
 #==========================

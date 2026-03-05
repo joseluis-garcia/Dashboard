@@ -1,6 +1,5 @@
 from pathlib import Path
 import streamlit as st
-import os
 import pandas as pd
 import plotly.graph_objects as go
 from comun.date_conditions import getSunDataRange
@@ -13,12 +12,10 @@ def load_historico_precios_spot(estaciones=True, efemerides=True):
 #==========================
 #=========================
 # Estas corrdenadas se utilizan para graficar las salidas y puestas del sol en el heatmap de precios
-#
+
     Puerta_Sol = dict(lat=40.4169, lon=-3.7033)
 
-# Directorio donde está este archivo (comun/) 
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
-# Ruta al JSON dentro de comun/
+# Ruta al csv dentro de comun con los precios spot 2024-2025
     repo_root = Path(__file__).resolve().parents[2]
     JSON_PATH = repo_root / "data" / "spot.csv"
   
@@ -43,7 +40,6 @@ def load_historico_precios_spot(estaciones=True, efemerides=True):
 #===========================
 # Gráfico de heatmap de precios con Plotly
 #===========================
-
     fig_precios = go.Figure(
         data=go.Heatmap(
             z=price_matrix.values,

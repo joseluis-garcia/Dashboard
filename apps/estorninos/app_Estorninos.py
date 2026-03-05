@@ -6,15 +6,17 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pytz
 
+
 # Añadir la raíz del repo al PYTHONPATH
 repo_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(repo_root))
+
 import comun.date_conditions as dc
 from comun.get_ESIOS_data import get_ESIOS_energy, get_ESIOS_spot, grafico_ESIOS_energy
 from comun.get_prices_forecast import get_prices_forecast, grafico_prices_forecast
 from historico_spot import load_historico_precios_spot
 from historico_temperaturas import load_historico_temperaturas
-from mensaje import show_mensaje
+from comun.mensaje import show_mensaje
 # =========================
 # Rango temporal de analisis hoy menos 5 dias y hoy mas 10 dias en futuro
 # =========================
@@ -81,7 +83,6 @@ tab_curvas, tab_precios, tab_temperaturas, tab_summary = st.tabs(["Curvas", "Pre
 
 with tab_curvas:
     st.info(f"Rango de fechas: {rango['start_date']} → {rango['end_date']}")
-
     st.subheader("Predicción Energia")
     df_energia, error = get_ESIOS_energy(rango)
     if error:

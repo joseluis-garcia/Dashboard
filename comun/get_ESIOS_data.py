@@ -1,4 +1,5 @@
     
+from pandas import pd
 from comun.get_ESIOS_indicator import get_indicator
 import comun.date_conditions as dc
 import plotly.graph_objects as go
@@ -50,14 +51,14 @@ def get_ESIOS_spot (rango):
         spot = spot[["datetime", "value"]].rename(columns={"value": "precio_spot"})
         return spot, None
     
-def grafico_ESIOS_energy(df_energia):
-    #fig = go.Figure()
+def grafico_ESIOS_energy(df_energia: pd.DataFrame) -> go.Figure:
 # --------------------------------------------------------- 
 # Crear figura con doble eje Y correctamente
 # --------------------------------------------------------- 
     fig = make_subplots( rows=1, cols=1, specs=[[{"secondary_y": True}]] )
 
     # --- BARRAS DE ENERGIA ---
+    # Añadir la eólica como stack base
     fig.add_trace(
         go.Scatter(
             x=df_energia["datetime"],
@@ -69,6 +70,7 @@ def grafico_ESIOS_energy(df_energia):
             stackgroup="energia"
         )
     )
+    # Añadir la solar como stack sobre la eólica
     fig.add_trace(
         go.Scatter(
             x=df_energia["datetime"],
@@ -80,9 +82,8 @@ def grafico_ESIOS_energy(df_energia):
             stackgroup="energia"
         )
     )
-
     fig.update_layout(barmode="stack")
-    
+    # Línea de demanda
     fig.add_trace(
         go.Scatter(
             x=df_energia["datetime"],
@@ -92,8 +93,7 @@ def grafico_ESIOS_energy(df_energia):
             line=dict(color="blue", width=2)
         )
     )
-
-    # Línea de temperatura
+    # Línea de porcentaje renovable sobre demanda
     fig.add_trace(
         go.Scatter(
             x=df_energia["datetime"],
@@ -104,10 +104,31 @@ def grafico_ESIOS_energy(df_energia):
             yaxis="y2"
         )
     )
-    # Asegurar que queda por encima del cloudcover 
+    # Asegurar que queda por encima 
     fig.data[-1].update(zorder=10)
-
-        # Configuración de ejes
+    # Añadir rectángulos en los fines de semana
+    for start, end in dc.weekends:
+        fig.add_shape(
+            type="rect",
+            x0=start,
+            x1=end,
+            y0=0,
+            y1=1,
+            xref="x",
+            yref="paper",
+            line=dict(color="rgba(150,150,150,0.6)", width=1.5),
+            fillcolor="rgba(100,100,100,0.2)",
+            layer="above"
+    )
+    # Añadir rectángulos en los días festivos
+    for festivo in dc.festivos:
+        fig.add_vrect(
+            x0=festivo, x1=festivo + pd.Timedelta(days=1),
+            fillcolor="indianred",
+            opacity=0.15,
+            line_width=0
+        )
+    # Configuración de ejes
     # Eje izquierdo (temperatura)
     fig.update_yaxes(
         title_text="MW",
@@ -115,7 +136,6 @@ def grafico_ESIOS_energy(df_energia):
         zeroline=False,
         secondary_y=False
     )
-
     # Eje derecho (porcentajes: cloudcover, precipitación, etc.)
     fig.update_yaxes(
         title_text="%",
@@ -124,7 +144,6 @@ def grafico_ESIOS_energy(df_energia):
         secondary_y=True,
         overlaying="y",          # 👈 superpone el eje derecho sobre el izquierdo
     )
-
     fig.update_layout(
         title="Previsión de energía eólica, solar y demanda", 
         xaxis_title="Fecha", 
@@ -136,8 +155,9 @@ def grafico_ESIOS_energy(df_energia):
                 xanchor="center",
                 x=0.5
             ),
-
         hovermode="x unified")
+    
+    # Línea vertical para marcar el día actual
     fig.add_vline(x=dc.today, line_width=4, line_dash="dash", line_color="green", name="Hoy")
     fig.update_xaxes( dtick="D1", tickangle=45)
     return fig
