@@ -1,17 +1,18 @@
 import sys
 from pathlib import Path
+import pandas as pd
 import streamlit as st
 
 # Añadir la raíz del repo al PYTHONPATH
 repo_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(repo_root))
 
+from comun.mensaje import render_df_proportional
+from energia_mes import get_energia_mes, grafico_energia_mes
 import comun.sql_utilities as db
-from get_aerotermia import get_aerotermia_data, grafico_aerotermia, tabla_aerotermia
-from app_mostrar_energia_mes import mostrar_energia_mes
-
-from pathlib import Path
-import os
+from aerotermia import get_aerotermia_data, grafico_aerotermia, tabla_aerotermia
+import SWIBE_update
+import SOM_update
 
 conn, error = db.init_db()
 if conn is None:
@@ -54,8 +55,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.set_page_config(layout="wide")
 st.sidebar.title("Menú")
-# with st.sidebar.expander("Opciones", expanded=False):
-#     pagina = st.selectbox("Selecciona análisis", ["Aerotermia", "Producción mes", "Ajustes"])
 
 pagina = st.sidebar.radio("Ir a:", ["Aerotermia", "Producción mes", "Ajustes"])
 if pagina == "Aerotermia":
@@ -70,9 +69,73 @@ if pagina == "Aerotermia":
 
 
 elif pagina == "Producción mes":
-    st.header("Producción mensual")
-    #mostrar_energia_mes()
+    st.header("Datos mensuales de producción, consumo, autoconsumo y excedente")
+    df_monthly, df_monthly_solar, df_monthly_excedente, df_monthly_consumo, df_monthly_general, df_monthly_autoconsumo = get_energia_mes(conn)
+
+    col1, col2 = st.columns(2, border=True)
+    with col1:
+        st.subheader("Producción mensual de energía solar (kWh)")
+        fig = grafico_energia_mes(df_monthly_solar, title="Producción mensual de energía solar (kWh) por año")
+        st.plotly_chart(fig, width='stretch')
+        with st.expander("ℹ️ Ver datos"):
+            df2 = df_monthly_solar.copy()
+            # Columnas numéricas excepto 'year'
+            num_cols = df2.select_dtypes(include="number").columns.drop("year")
+            # Formateo a string con 2 decimales
+            df2[num_cols] = df2[num_cols].map(lambda x: f"{x:.0f}")
+            msg = render_df_proportional(df2, widths=[], width_percent=90)
+            st.markdown(msg, unsafe_allow_html=True)
+    with col2:
+        st.subheader("Excedente mensual de energía solar (kWh)")
+        fig = grafico_energia_mes(df_monthly_excedente, title="Excedente mensual de energía solar (kWh) por año")
+        st.plotly_chart(fig, width='stretch')
+
+    col3, col4 = st.columns(2, border=True)
+    with col3:
+        st.subheader("Consumo mensual de energía (kWh)")
+        fig = grafico_energia_mes(df_monthly_consumo, title="Consumo mensual de energía (kWh) por año")
+        st.plotly_chart(fig, width='stretch')
+    with col4:
+        st.subheader("Autoconsumo mensual de energía (kWh)")
+        fig = grafico_energia_mes(df_monthly_autoconsumo, title="Autoconsumo mensual de energía (kWh) por año")
+        st.plotly_chart(fig, width='stretch')
 
 elif pagina == "Ajustes":
     st.header("Ajustes")
-    st.write("Opciones de configuración")
+    st.write("Datos actalización de tablas")
+    
+    st.write("### Tabla con acciones por fila")
+    tables = ['DATADIS_v',"PVGIS_v", "SOM_precio_indexada", "SWIBE_v", "VXSING_days","VXSING_hours" ]
+    df, error = db.get_tables_info(conn, tables)
+    if error:
+        st.error(f"Error al obtener información de tablas: {error}")
+    else:
+
+        # Cabecera
+        col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+        col1.write("**Tabla**")
+        col2.write("**Desde**")
+        col3.write("**Hasta**")
+        col4.write("**Acción**")
+
+        # Filas
+        for idx, row in df.iterrows():
+            col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+
+            col1.write(row["Tabla"])
+            col2.write(row["Desde"])
+            col3.write(row["Hasta"])
+
+            # Botón único por fila
+            if col4.button("▶", key=f"btn_{idx}"):
+                # Acción dependiente del concepto
+                st.success(f"Ejecutando acción para concepto {row['Tabla']} (fila {idx})")
+                
+                if idx == 2:
+                    error = SOM_update.update_data(conn)
+                    st.error(error)
+                if idx == 3:
+                    error = SWIBE_update.update_data(conn)
+                    st.error(error)
+
+

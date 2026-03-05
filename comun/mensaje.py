@@ -3,6 +3,11 @@ import pandas as pd
 
 def render_df_proportional(df, widths, width_percent = 100):
 
+    # Si widths no viene o viene vacío → columnas iguales
+    if not widths:
+        n = len(df.columns)
+        widths = [1 / n] * n
+    
     # Convertimos proporciones a %
     widths_pct = [w * 100 for w in widths]
 
