@@ -24,8 +24,16 @@ def costes_regulados(df: pd.DataFrame, col_datetime: str) -> pd.DataFrame:
 # Ruta al JSON dentro de data/
     repo_root = Path(__file__).resolve().parents[1]
     JSON_PATH = repo_root / "data" / "costes_regulados.json"
-    with open(JSON_PATH, "r", encoding="utf-8") as f:
-        costes = json.load(f)["cargos"]
+    print(f"Cargando costes regulados desde: {JSON_PATH}")
+    try:
+        with open(JSON_PATH, "r", encoding="utf-8") as f:
+            costes = json.load(f)["cargos"]
+    except FileNotFoundError:
+        print(f"Archivo no encontrado: {JSON_PATH}")
+        return df
+    except json.JSONDecodeError:
+        print(f"Error al decodificar el archivo JSON: {JSON_PATH}")
+        return df
 
     df = df.copy()
     df["periodo"] = df[col_datetime].apply(periodo_2_0TD)

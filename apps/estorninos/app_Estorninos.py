@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pytz
 
-
 # Añadir la raíz del repo al PYTHONPATH
 repo_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(repo_root))
