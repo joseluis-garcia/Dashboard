@@ -96,7 +96,7 @@ def get_meteo_7D(lat, lon, azimuth):
         "latitude": lat,
         "longitude": lon,
         "hourly": ["temperature_2m", "cloud_cover", "weather_code", "precipitation_probability", "direct_radiation"],
-        "timezone": "auto",
+        "timezone": "UTC",
         "azimuth": azimuth,
     }
     try:
@@ -139,6 +139,8 @@ def get_meteo_7D(lat, lon, azimuth):
     return df, None
 
 def get_meteo_hours(df_forecast, hours):
+    print(df_forecast.head())
+    print(df_forecast.columns)
     now = pd.Timestamp.now(tz=df_forecast['time'].dt.tz)
     df_hours = df_forecast[(df_forecast['time'] >= now) &
                  (df_forecast['time'] <= now + pd.Timedelta(hours=hours))]

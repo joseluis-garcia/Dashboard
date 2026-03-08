@@ -9,7 +9,8 @@ TZ = ZoneInfo("Europe/Madrid")
 
 def to_utc(dt_local):
     dt_local = dt_local.replace(tzinfo=TZ)
-    return dt_local.astimezone(ZoneInfo("UTC"))
+    dt_utc = dt_local.astimezone(ZoneInfo("UTC"))
+    return dt_utc.replace(tzinfo=None)
 
 def build_local_series(data):
 
@@ -47,8 +48,8 @@ def insert_prices(conn, data):
 
     # 4. Insertar solo los nuevos
     if not df.empty:
-        df["date"] = df["date_utc"].astype(str)
-        df_to_insert = df[["date", "price"]]
+        df["datetime"] = df["date_utc"].astype(str)
+        df_to_insert = df[["datetime", "price"]]
         print("Insertaremos:", df_to_insert)
         df_to_insert.to_sql("SOM_precio_indexada", conn, if_exists="append", index=False)
 

@@ -136,8 +136,6 @@ def getSunData(lat: float, lon: float, date: datetime, tz_local: str="Europe/Mad
         "sunset": sunset.hour + sunset.minute/60,
         "noon": noon.hour + noon.minute/60
     }
-
-
 # =========================
 # FUNCION PARA OBTENER HORAS DE SALIDA Y PUESTA DEL SOL
 # coord: diccionario con latitud y longitud {"lat": 40.4169, "lon": -3.7033}
@@ -174,3 +172,16 @@ def getSunDataRange(coord: Coord, start: datetime, end: datetime, delta: int, tz
         d += timedelta(days=delta)
 
     return pd.DataFrame(rows)
+#=====================
+
+#=====================
+def day_of_year_no_leap(date) -> int:
+    '''
+    funcion para convertir una fecha dada en un indice
+    Compute day index (1-365) ignoring February 29"""  
+    '''
+    # Adjust for leap years by skipping February 29
+    day_index = date.timetuple().tm_yday
+    if date.month > 2 and (date.year % 4 == 0 and (date.year % 100 != 0 or date.year % 400 == 0)):
+        day_index -= 1  # Remove leap day offset
+    return day_index

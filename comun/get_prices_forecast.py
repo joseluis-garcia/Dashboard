@@ -12,13 +12,13 @@ intercept = 127.12
 # Función para obtener el precio estimado a partir de la energía renovable y la demanda previsiones de ESIOS, y el precio spot diario de ESIOS. Se añaden los costes regulados para obtener el precio final estimado.
 #==========================
 def get_prices_forecast(energy, spot):    
-    df_final = energy.merge(spot, on="datetime", how="outer")
+    df_final = energy.join(spot, how="outer")
     df_final["renovable"] = df_final["eolica"] + df_final["solar"]
     df_final["precio_estimado"] = (df_final["renovable"] / df_final["demanda"] * slope + intercept)
 #==========================
 # Tanto spot como la estimación estan hechas sin costes regulados, que se añaden al final para obtener el precio final estimado.
 #==========================
-    df_final = costes_regulados(df_final, 'datetime')
+    df_final = costes_regulados(df_final)
     df_final["precio_estimado"] += df_final["costes_regulados"]
     df_final["precio_spot"] += df_final["costes_regulados"]
     return df_final
@@ -53,7 +53,7 @@ def grafico_prices_forecast(df_precios):
         )
     # Curva de precio estimado
     fig_estimacion.add_trace(go.Scatter(
-        x=df_precios["datetime"],
+        x=df_precios.index,
         y=df_precios["precio_estimado"],
         mode="lines",
         name="Precio estimado",
@@ -61,7 +61,7 @@ def grafico_prices_forecast(df_precios):
     ))
     # Curva de precio spot
     fig_estimacion.add_trace(go.Scatter(
-        x=df_precios["datetime"],
+        x=df_precios.index,
         y=df_precios["precio_spot"],
         mode="lines",
         name="Precio spot",

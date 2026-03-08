@@ -18,23 +18,24 @@ def get_ESIOS_energy(rango):
     if error:
         return None, error
     else:
-        eolica = df[["datetime", "value"]].rename(columns={"value": "eolica"})
+        eolica = df[["value"]].rename(columns={"value": "eolica"})
 
     df, error = get_indicator(IND_PV, rango)
     if error:
         return None, error
     else:
-        solar = df[["datetime", "value"]].rename(columns={"value": "solar"})
+        solar = df[["value"]].rename(columns={"value": "solar"})
         
     demanda, error = get_indicator(IND_DEM, rango)
     if error:
         return None, error
     else:        
-        demanda = demanda[["datetime", "value"]].rename(columns={"value": "demanda"})
+        demanda = demanda[[ "value"]].rename(columns={"value": "demanda"})
 #=========================
 # Combinar datos en un solo DataFrame
 #=========================
-    df_energy = eolica.merge(solar, on="datetime", how="outer").merge(demanda, on="datetime", how="outer")
+    df_energy = eolica.join(solar, how="outer").join(demanda, how="outer")
+    #df_energy = eolica.merge(solar, on="datetime", how="outer").merge(demanda, on="datetime", how="outer")
     df_energy["renovable"] = df_energy["eolica"] + df_energy["solar"]
     return df_energy, None
 
@@ -47,7 +48,8 @@ def get_ESIOS_spot (rango):
         return None, error
     else:
         spot = df[df['geo_name'] == 'España'] #solo valores de Peninsula
-        spot = spot[["datetime", "value"]].rename(columns={"value": "precio_spot"})
+        #spot = spot[["datetime", "value"]].rename(columns={"value": "precio_spot"})
+        spot = spot[["value"]].rename(columns={"value": "precio_spot"})
         return spot, None
     
 def grafico_ESIOS_energy(df_energia: pd.DataFrame) -> go.Figure:
@@ -60,7 +62,7 @@ def grafico_ESIOS_energy(df_energia: pd.DataFrame) -> go.Figure:
     # Añadir la eólica como stack base
     fig.add_trace(
         go.Scatter(
-            x=df_energia["datetime"],
+            x=df_energia.index,
             y=df_energia["eolica"],
             mode="lines",
             name="Eólica",
@@ -72,7 +74,7 @@ def grafico_ESIOS_energy(df_energia: pd.DataFrame) -> go.Figure:
     # Añadir la solar como stack sobre la eólica
     fig.add_trace(
         go.Scatter(
-            x=df_energia["datetime"],
+            x=df_energia.index,
             y=df_energia["solar"],
             name="Solar",
             mode="lines",
@@ -85,7 +87,7 @@ def grafico_ESIOS_energy(df_energia: pd.DataFrame) -> go.Figure:
     # Línea de demanda
     fig.add_trace(
         go.Scatter(
-            x=df_energia["datetime"],
+            x=df_energia.index,
             y=df_energia["demanda"],
             mode="lines",
             name="Demanda",
@@ -95,7 +97,7 @@ def grafico_ESIOS_energy(df_energia: pd.DataFrame) -> go.Figure:
     # Línea de porcentaje renovable sobre demanda
     fig.add_trace(
         go.Scatter(
-            x=df_energia["datetime"],
+            x=df_energia.index,
             y=df_energia["renovable"] / df_energia["demanda"] * 100,  # porcentaje de renovable sobre demanda
             mode="lines",
             name="%EO+FV / Demanda",

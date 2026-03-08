@@ -2,7 +2,7 @@ import pandas as pd
 import sqlite3
 from datetime import datetime
 import plotly.graph_objects as go
-
+from comun.sql_utilities import read_sql_ts
 
 def define_excedente( row):
     if row["general_Wh"] < 0:
@@ -13,16 +13,15 @@ def define_excedente( row):
 def get_energia_mes( conn: sqlite3.Connection) -> pd.DataFrame:
 
     #Previous data recorded until
-    query = "SELECT date, general_Wh,solar_Wh, power_Wp from SWIBE_v"
-    swibe = pd.read_sql_query(query, conn, parse_dates=["date"])
+    query = "SELECT datetime, general_Wh,solar_Wh, power_Wp from SWIBE_v order by datetime"
+    swibe = read_sql_ts(query, conn)
     # Normalizar por potencia instalada
     swibe['solar_Wh'] = swibe['solar_Wh'] / swibe['power_Wp'] * 6.6
     swibe[["excedente_Wh", "consumo_Wh", "autoconsumo_Wh"]] = swibe.apply(define_excedente, axis=1, result_type="expand")
-    swibe['date'] = pd.to_datetime(swibe['date'], format='%Y-%m-%d', errors='coerce')
     
-    swibe['year'] = swibe['date'].dt.year
-    swibe['month'] = swibe['date'].dt.month
-    swibe.drop(columns=['date', 'power_Wp'], inplace=True)
+    swibe['year'] = swibe.index.year
+    swibe['month'] = swibe.index.month
+    swibe.drop(columns=['power_Wp'])
     num_cols = swibe.select_dtypes(include="number").columns.drop(["year", "month"])
     swibe[num_cols] = swibe[num_cols] / 1000
 

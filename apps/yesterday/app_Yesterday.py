@@ -11,7 +11,8 @@ from comun.mensaje import render_df_proportional
 from energia_mes import get_energia_mes, grafico_energia_mes
 import comun.sql_utilities as db
 from aerotermia import get_aerotermia_data, grafico_aerotermia, tabla_aerotermia
-import SWIBE_update
+from power_weather_correlation import power_weather_correlation, grafico_prediccion
+import WIBEE_update
 import SOM_update
 
 conn, error = db.init_db()
@@ -56,7 +57,7 @@ st.markdown("""
 st.set_page_config(layout="wide")
 st.sidebar.title("Menú")
 
-pagina = st.sidebar.radio("Ir a:", ["Aerotermia", "Producción mes", "Ajustes"])
+pagina = st.sidebar.radio("Ir a:", ["Aerotermia", "Producción mes", "Correlacion", "Ajustes"])
 if pagina == "Aerotermia":
     with st.container():
         st.header("Consumo aerotermia vs temperaturas")
@@ -100,12 +101,17 @@ elif pagina == "Producción mes":
         fig = grafico_energia_mes(df_monthly_autoconsumo, title="Autoconsumo mensual de energía (kWh) por año")
         st.plotly_chart(fig, width='stretch')
 
+elif pagina == "Correlacion":
+    df = power_weather_correlation( conn)
+    fig = grafico_prediccion(df)
+    st.plotly_chart(fig, width='stretch')
+
 elif pagina == "Ajustes":
     st.header("Ajustes")
     st.write("Datos actalización de tablas")
     
     st.write("### Tabla con acciones por fila")
-    tables = ['DATADIS_v',"PVGIS_v", "SOM_precio_indexada", "SWIBE_v", "VXSING_days","VXSING_hours" ]
+    tables = ['DATADIS_v',"PVGIS", "SOM_precio_indexada", "WIBEE", "METEO" ]
     df, error = db.get_tables_info(conn, tables)
     if error:
         st.error(f"Error al obtener información de tablas: {error}")
@@ -135,7 +141,7 @@ elif pagina == "Ajustes":
                     error = SOM_update.update_data(conn)
                     st.error(error)
                 if idx == 3:
-                    error = SWIBE_update.update_data(conn)
+                    error = WIBEE_update.update_data(conn)
                     st.error(error)
 
 

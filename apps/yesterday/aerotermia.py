@@ -4,67 +4,59 @@ import scipy.stats as stats
 import plotly.graph_objects as go
 import numpy as np
 from comun.mensaje import render_df_proportional
+from comun.sql_utilities import read_sql_ts
 
 def cleanSolar( row):
+    # Para cada dia se asume que toda la energia proveniente de los paneles se consume primero en aerotermia
     return row['extra_Wh'] - row['solar_Wh'] if row['extra_Wh'] > row['solar_Wh'] else 0
 
 def get_aerotermia_data( conn):
-    #Previous data recorded until
-    query = "SELECT date, solar_Wh, extra_Wh from SWIBE_v where extra_Wh > 15 and extra='{0}'".format('AEROTERMIA')
-    swibe = pd.read_sql_query(query, conn, parse_dates=["date"])
-    swibe["datetime"] = pd.to_datetime(swibe["date"])
+    #Query historical energy consumption data from WIBEE table
+    query = "SELECT datetime, solar_Wh, extra_Wh from WIBEE where extra_Wh > 15 and extra='{0}' order by datetime".format('AEROTERMIA')
+    swibe = read_sql_ts(query, conn)
     swibe['energy'] = swibe.apply( cleanSolar, axis = 1)
-    swibe["energy"] = swibe["energy"] / 1000 # Convertir a kWh
-    swibe = swibe[["datetime", "energy"]]
+    swibe['energy'] = swibe["energy"] / 1000 # Convertir a kWh
+    swibe = swibe[['energy']]
+    aeroMin = swibe.index.min()
+    aeroMax = swibe.index.max()
+    st.write(f"WIBEE since {aeroMin} to {aeroMax}")
 
-    aeroMin = swibe['datetime'].min()
-    aeroMax = swibe['datetime'].max()
-    st.write(f"SWIBE since {aeroMin} to {aeroMax}")
-
-    query = "SELECT * from precios_indexada_som"
-    prices = pd.read_sql_query(query, conn)
-    prices['precio'] = pd.to_numeric(prices['precio'], errors='coerce')
-    prices['precio'] = prices['precio'] * 1.21
-    prices['datetime'] = pd.to_datetime(prices['datetime'])
-
-    pricesMin = prices['datetime'].min()
-    pricesMax = prices['datetime'].max()
+    # Query prices data form precios_indexada
+    query = "SELECT * from SOM_precio_indexada order by datetime"
+    prices = read_sql_ts(query, conn)
+    prices['price'] = pd.to_numeric(prices['price'], errors='coerce')
+    prices['price'] = prices['price'] * 1.21
+    pricesMin = prices.index.min()
+    pricesMax = prices.index.max()
     st.write(f"PRICES since {pricesMin} to {pricesMax}")
 
     dateMin = max(pricesMin, aeroMin)
     dateMax = min(pricesMax, aeroMax)
     st.write(f"Using data from {dateMin} to {dateMax}")
 
-    df_energy = swibe[(swibe['datetime'] >= dateMin) & (swibe['datetime'] <= dateMax)]
-    df_prices = prices[(prices['datetime'] >= dateMin) & (prices['datetime'] <= dateMax)]
+    df_energy = swibe[(swibe.index >= dateMin) & (swibe.index <= dateMax)]
+    df_prices = prices[(prices.index >= dateMin) & (prices.index <= dateMax)]
 
-    # Set the date columns as index to align both DataFrames on date
-    df_energy.set_index('datetime', inplace=True)
-    df_prices.set_index('datetime', inplace=True)
-
-    df_cost=pd.merge(df_prices, df_energy, left_index=True, right_index=True, how='inner')
-    # Perform the multiplication on the numeric columns only
-    df_cost["cost"] = df_cost["precio"] * df_cost["energy"]
-
-    # Reset the index to bring 'date' back as a column
-    df_cost.reset_index(inplace=True)
+    # Compute real cost
+    df_cost = df_prices.join(df_energy)
+    df_cost["cost"] = df_cost["price"] * df_cost["energy"]
 
     #Get weather data from VXSING
-    query = "SELECT date as datetime, temp from VXSING_hours where datetime >= '{0}' and datetime <= '{1}'".format(dateMin, dateMax)
-    df_temp = pd.read_sql_query(query, conn, parse_dates=['datetime'])
-    df_temp['datetime'] = pd.to_datetime(df_temp['datetime'])
-    df_final = pd.merge(df_cost, df_temp, on='datetime', how='inner')
+    query = "SELECT date as datetime, temp from VXSING_hours where datetime >= '{0}' and datetime <= '{1}' order by datetime".format(dateMin, dateMax)
+    df_temp = read_sql_ts(query, conn)
+
+    #Merge all data in one final dataframe
+    df_final = df_cost.join(df_temp)
     return df_final
 
 def grafico_aerotermia(df_final):
-    # Datos
-    df_final = df_final.set_index("datetime")
+    # Clean days where only standby consumption
     df_final = df_final[df_final['energy'] > 1.6]
     daily_energy = df_final["energy"].resample("D").sum() 
     daily_temp = df_final["temp"].resample("D").mean() 
     df_daily = pd.DataFrame({ "energy_sum": daily_energy, "temp_mean": daily_temp }).dropna()
     fig =  regresion(df_daily, "temp_mean", "energy_sum")
-        # Layout profesional
+
     fig.update_layout(
         template="plotly_dark",  # ideal para Streamlit dark
         xaxis_title="Temperatura (°C)",
@@ -172,13 +164,13 @@ def tabla_aerotermia(df_final: pd.DataFrame) -> str:
     Renderiza en una tabla HTML para mostrar el dataframe que contine los datos de aerotermia.
     '''
 
-    df_monthly1 = df_final.resample("ME", on="datetime").sum()
+    df_monthly1 = df_final.resample("ME").sum()
     df_monthly1["date"] = df_monthly1.index.strftime("%Y-%m")
 
     cols = ["Fecha", "Precio", "Energia"]
     df_print = df_monthly1.copy()
     df_print["Fecha"] = df_print["date"]
-    df_print["Precio"] = df_monthly1["precio"].map("{:.2f} €".format)
+    df_print["Precio"] = df_monthly1["price"].map("{:.2f} €".format)
     df_print["Energia"] = df_monthly1["energy"].map("{:.2f} kWh".format)
 
     return render_df_proportional(

@@ -30,7 +30,9 @@ def get_indicator(indicator_id, date_range):
     variable = json_data["indicator"]["short_name"]
 
     df = pd.DataFrame(data)
-    df["datetime"] = pd.to_datetime(df["datetime"])
+    df["datetime"] = pd.to_datetime(df["datetime"], utc=True)
+    df["datetime"] = df["datetime"].dt.tz_localize(None)
+    df = df.set_index("datetime").sort_index()
     df["variable"] = variable
 
     return df, None

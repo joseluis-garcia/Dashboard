@@ -19,6 +19,7 @@ from comun.get_openmeteo import (get_meteo_7D, get_meteo_hours, grafica_meteo)
 from comun.get_PVGIS import (get_PVGIS_data, grafico_PVGIS)
 
 Puerta_Sol = dict(lat=40.4169, lon=-3.7033)
+Casa = dict(lat=40.5661,lon=3.8998)
 
 # Función para centrar el texto de los headers
 def header_centrado(texto):
