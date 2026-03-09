@@ -2,3 +2,5 @@
 .streamlit/secrets.toml
 
 *.pyc
+*.pyc
+__pycache__/
