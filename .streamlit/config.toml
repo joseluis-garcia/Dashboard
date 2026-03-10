@@ -5,3 +5,5 @@ headless = true
 port = 8501
 [client]
 showErrorDetails = true
+[logger]
+level = "info"
