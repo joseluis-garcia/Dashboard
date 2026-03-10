@@ -1,13 +1,13 @@
 """
 Módulo para obtener datos meteorológicos de Open-Meteo API.
 
-Proporciona funciones para obtener y visualizar:
-- Previsión meteorológica de 7 días
-- Temperatura, nubosidad, precipitación
-- Gráficos interactivos de datos meteorológicos
+Proporciona funciones para:
+- Obtener previsión meteorológica de 7 días
+- Filtrar datos meteorológicos por rango de horas
+- Crear gráficos interactivos de meteorología
 """
 
-from typing import Tuple, Optional, Dict, Any, List
+from typing import Tuple, Optional
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -20,22 +20,22 @@ from retry_requests import retry
 @st.cache_data
 def grafica_meteo(df: pd.DataFrame) -> go.Figure:
     """
-    Crea gráfico de datos meteorológicos.
+    Crea gráfico interactivo de datos meteorológicos.
     
-    Genera un gráfico interactivo con:
-    - Barras de nubosidad (eje Y izquierdo)
-    - Línea de temperatura (eje Y izquierdo)
-    - Barras de probabilidad de lluvia (eje Y derecho)
+    Genera un gráfico con:
+    - Barras de nubosidad (eje Y derecho, %)
+    - Línea de temperatura (eje Y izquierdo, °C)
+    - Barras de probabilidad de lluvia (eje Y derecho, %)
     
     Args:
         df: DataFrame con columnas ['time', 'temperature_2m', 'cloud_cover', 
             'precipitation_probability']
         
     Returns:
-        Figura Plotly (go.Figure) con datos meteorológicos
+        Figura Plotly (go.Figure)
         
     Example:
-        >>> df = get_meteo_7D(40.4169, -3.7033, 0)
+        >>> df, _ = get_meteo_7D(40.4169, -3.7033, 0)
         >>> fig = grafica_meteo(df)
         >>> fig.show()
     """
@@ -68,7 +68,7 @@ def grafica_meteo(df: pd.DataFrame) -> go.Figure:
         )
     )
 
-    # Asegurar que temperatura queda por encima de nubosidad
+    # Asegurar que la temperatura queda por encima de nubosidad
     fig.data[-1].update(zorder=10)
 
     # Barras de probabilidad de lluvia
@@ -118,38 +118,32 @@ def grafica_meteo(df: pd.DataFrame) -> go.Figure:
 def get_meteo_7D(
     lat: float,
     lon: float,
-    azimuth: float = 0
+    azimuth: float
 ) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """
     Obtiene previsión meteorológica de 7 días de Open-Meteo.
     
-    Obtiene datos horarios de temperatura, nubosidad, radiación directa
-    y probabilidad de precipitación para los próximos 7 días.
+    Obtiene datos horarios de temperatura, nubosidad, código de clima,
+    precipitación y radiación directa para los próximos 7 días.
     
     Args:
-        lat: Latitud de la ubicación (grados decimales)
-        lon: Longitud de la ubicación (grados decimales)
-        azimuth: Azimut para radiación solar (por defecto 0)
+        lat: Latitud (grados decimales)
+        lon: Longitud (grados decimales)
+        azimuth: Azimut para radiación solar
         
     Returns:
         Tupla (dataframe, error) donde:
         - dataframe: DataFrame con datos meteorológicos horarios
         - error: None si es exitoso, mensaje de error si falla
         
-    Raises:
-        Exception: Se captura cualquier error de API
-        
     Example:
-        >>> df, error = get_meteo_7D(40.4169, -3.7033)
+        >>> df, error = get_meteo_7D(40.4169, -3.7033, 0)
         >>> if not error:
-        ...     print(df.head())
+        ...     print(f"Temperatura promedio: {df['temperature_2m'].mean():.1f}°C")
     """
     try:
         # Setup API client con cache y retry
-        cache_session = requests_cache.CachedSession(
-            '.cache',
-            expire_after=3600
-        )
+        cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
         retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
         openmeteo = openmeteo_requests.Client(session=retry_session)
 
@@ -177,25 +171,75 @@ def get_meteo_7D(
 
         # Procesar datos horarios
         hourly = response.Hourly()
+        hourly_temperature_2m = hourly.Variables(0).ValuesAsNumpy()
+        hourly_cloud_cover = hourly.Variables(1).ValuesAsNumpy()
+        hourly_weather_code = hourly.Variables(2).ValuesAsNumpy()
+        hourly_precipitation_probability = hourly.Variables(3).ValuesAsNumpy()
+        hourly_direct_radiation = hourly.Variables(4).ValuesAsNumpy()
+
+        # Crear rango de fechas
         hourly_data = {
-            "time": pd.date_range(
-                start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
-                periods=hourly.Variables(0).ValuesAsNumpy().shape[0],
-                freq=pd.DateOffset(hours=1)
-            ),
-            "temperature_2m": hourly.Variables(0).ValuesAsNumpy(),
-            "cloud_cover": hourly.Variables(1).ValuesAsNumpy(),
-            "weather_code": hourly.Variables(2).ValuesAsNumpy(),
-            "precipitation_probability": hourly.Variables(3).ValuesAsNumpy(),
-            "direct_radiation": hourly.Variables(4).ValuesAsNumpy()
+            "date": pd.date_range(
+                start=pd.to_datetime(
+                    hourly.Time() + response.UtcOffsetSeconds(),
+                    unit="s",
+                    utc=True
+                ),
+                end=pd.to_datetime(
+                    hourly.TimeEnd() + response.UtcOffsetSeconds(),
+                    unit="s",
+                    utc=True
+                ),
+                freq=pd.Timedelta(seconds=hourly.Interval()),
+                inclusive="left"
+            )
         }
 
-        df = pd.DataFrame(hourly_data)
-        return df, None
+        # Agregar variables horarias
+        hourly_data["temperature_2m"] = hourly_temperature_2m
+        hourly_data["cloud_cover"] = hourly_cloud_cover
+        hourly_data["weather_code"] = hourly_weather_code
+        hourly_data["precipitation_probability"] = hourly_precipitation_probability
+        hourly_data["direct_radiation"] = hourly_direct_radiation
 
-    except Exception as err:
-        error = f"Error al obtener datos meteorológicos: {err}"
-        return None, error
+        # Crear DataFrame
+        hourly_dataframe = pd.DataFrame(data=hourly_data)
+        hourly_dataframe["time"] = pd.to_datetime(hourly_dataframe["date"])
+
+        return hourly_dataframe, None
+
+    except Exception as e:
+        return None, f"Error al obtener datos meteorológicos: {str(e)}"
 
 
-__all__ = ["get_meteo_7D", "grafica_meteo"]
+def get_meteo_hours(
+    df_forecast: pd.DataFrame,
+    hours: int
+) -> pd.DataFrame:
+    """
+    Filtra datos meteorológicos para un rango de horas a partir de ahora.
+    
+    Obtiene los datos meteorológicos desde la hora actual hasta N horas
+    en el futuro.
+    
+    Args:
+        df_forecast: DataFrame con datos meteorológicos (debe tener columna 'time')
+        hours: Número de horas hacia el futuro
+        
+    Returns:
+        DataFrame filtrado con datos para las próximas N horas
+        
+    Example:
+        >>> df_7d, _ = get_meteo_7D(40.4169, -3.7033, 0)
+        >>> df_24h = get_meteo_hours(df_7d, 24)
+        >>> print(f"Datos para próximas 24h: {len(df_24h)} registros")
+    """
+    now = pd.Timestamp.now(tz=df_forecast['time'].dt.tz)
+    df_hours = df_forecast[
+        (df_forecast['time'] >= now) &
+        (df_forecast['time'] <= now + pd.Timedelta(hours=hours))
+    ]
+    return df_hours
+
+
+__all__ = ["get_meteo_7D", "get_meteo_hours", "grafica_meteo"]

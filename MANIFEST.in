@@ -1,0 +1,10 @@
+include README.md
+include LICENSE
+include ARCHITECTURE.md
+recursive-include dashboard/comun/icons *.png
+recursive-include .streamlit *.toml
+include data/costes_regulados.json
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *$py.class
+global-exclude .DS_Store

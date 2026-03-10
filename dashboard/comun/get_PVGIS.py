@@ -3,11 +3,11 @@ Módulo para obtener datos de producción solar de PVGIS.
 
 Proporciona funciones para:
 - Obtener datos históricos de producción solar
-- Calcular perfiles de radiación solar
+- Calcular perfiles de radiación solar diaria
 - Visualizar datos solares con gráficos interactivos
 """
 
-from typing import Tuple, Optional, Dict, Any
+from typing import Optional
 from datetime import datetime
 import os
 import base64
@@ -15,34 +15,31 @@ import requests
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from dashboard.comun.date_conditions import getSunData, Coord
+from dashboard.comun.date_conditions import getSunData
 
 
 def load_icon(relative_path: str) -> str:
     """
-    Carga un icono PNG desde la carpeta de recursos y lo convierte a base64.
+    Carga un icono PNG desde la carpeta de recursos como base64.
     
     Carga un archivo de imagen PNG desde la ruta relativa y lo codifica
     en base64 para usar en Plotly como fuente de imagen.
     
     Args:
-        relative_path: Ruta relativa al archivo de imagen desde comun/
+        relative_path: Ruta relativa al archivo desde comun/
                       (ej: "icons/sunrise-dark.png")
         
     Returns:
-        String con datos base64 prefijado con "data:image/png;base64,"
+        String con datos base64 prefijado para usar en Plotly
         
     Raises:
         FileNotFoundError: Si el archivo no existe
-        IOError: Si hay error al leer el archivo
         
     Example:
         >>> icon = load_icon("icons/sunrise-dark.png")
-        >>> # icon es ahora una cadena que puede usarse en Plotly
     """
-    # Directorio donde está este archivo
+    # Directorio donde está este archivo (comun/)
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    # Ruta completa al icono
     icon_path = os.path.join(base_dir, relative_path)
     
     with open(icon_path, "rb") as f:
@@ -73,29 +70,21 @@ def grafico_PVGIS(
         fecha: Fecha para calcular datos solares (datetime)
         
     Returns:
-        Figura Plotly (go.Figure) con perfil de radiación solar
+        Figura Plotly (go.Figure)
         
     Example:
-        >>> df = pd.DataFrame({
-        ...     'hora': ['00', '01', ..., '23'],
-        ...     'P': [0, 0, ..., 0]
-        ... })
-        >>> fig = grafico_PVGIS(df, 40.4169, -3.7033, datetime(2026, 3, 10))
+        >>> df = pd.DataFrame({'hora': range(24), 'P': [0]*24})
+        >>> fig = grafico_PVGIS(df, 40.4169, -3.7033, datetime.now())
         >>> fig.show()
     """
     # Formatear horas como strings
     df["hora"] = df["hora"].apply(lambda h: f"{int(h):02d}")
     
-    # Crear lista de horas completas (00-23)
-    horas_completas = [f"{h:02d}" for h in range(24)]
-
     # Obtener datos del sol
     sun_data = getSunData(lat, lon, fecha, tz_local="Europe/Madrid")
-    
-    # Crear figura
     fig = go.Figure()
 
-    # Convertir horas a números para el eje X
+    # Convertir horas a números para eje X
     df["hora_num"] = df["hora"].apply(lambda h: int(h[:2]))
 
     # Línea de potencia solar
@@ -170,91 +159,86 @@ def grafico_PVGIS(
     # Configuración del eje X
     fig.update_xaxes(
         range=[0, 23],
-        dtick=1,  # Marcar cada hora
-        title_text="Hora del día"
-    )
-
-    # Configuración del eje Y
-    fig.update_yaxes(
-        title_text="Potencia (W/m²)"
+        dtick=1
     )
 
     # Layout general
     fig.update_layout(
-        title=f"Perfil de radiación solar - {fecha.strftime('%d/%m/%Y')}",
-        hovermode="x unified",
-        margin=dict(l=0, r=0, t=30, b=0),
-        autosize=True,
-        height=400
+        title="Curva promedio de potencia por kWp instalado para hoy",
+        xaxis_title="Hora del día",
+        yaxis_title="Potencia pico (kW)",
+        template="plotly_white",
+        xaxis=dict(dtick=1, showgrid=True),
+        yaxis=dict(showgrid=True)
     )
 
     return fig
 
 
+@st.cache_data
 def get_PVGIS_data(
     lat: float,
     lon: float,
-    fecha: datetime,
-    perc: int = 10
-) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+    fecha: datetime
+) -> pd.DataFrame:
     """
     Obtiene datos de producción solar histórica de PVGIS.
     
-    Obtiene valores horarios de irradiancia y potencia solar para
-    una ubicación y fecha especificadas usando la API de PVGIS.
+    Obtiene datos horarios de irradiancia y potencia solar histórica
+    de PVGIS (v5.3) y filtra solo el día especificado.
     
     Args:
         lat: Latitud de la ubicación (grados decimales)
         lon: Longitud de la ubicación (grados decimales)
-        fecha: Fecha para la cual obtener datos (datetime)
-        perc: Percentil de confianza (por defecto 10, rango 1-99)
+        fecha: Fecha para filtrar datos (datetime)
         
     Returns:
-        Tupla (dataframe, error) donde:
-        - dataframe: DataFrame con datos horarios de radiación
-        - error: None si es exitoso, mensaje de error si falla
+        DataFrame con datos horarios del día especificado
         
     Raises:
-        Exception: Se captura cualquier error de API
+        requests.exceptions.HTTPError: Si la solicitud a PVGIS falla
         
     Example:
-        >>> df, error = get_PVGIS_data(40.4169, -3.7033, datetime(2026, 3, 10))
-        >>> if not error:
-        ...     print(df.head())
+        >>> df = get_PVGIS_data(40.4169, -3.7033, datetime(2026, 3, 10))
+        >>> print(df.head())
     """
-    try:
-        # Formato de fecha para PVGIS: YYYY-MM-DD
-        fecha_str = fecha.strftime("%Y-%m-%d")
-        
-        # URL de la API de PVGIS
-        url = (
-            f"https://re.jrc.ec.europa.eu/api/v5_2/solardata?"
-            f"lat={lat}&lon={lon}&date={fecha_str}&outputformat=json&perc={perc}"
-        )
-        
-        # Realizar solicitud
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        
-        data = response.json()
-        
-        # Extraer datos horarios
-        if "outputs" not in data or "hourly" not in data["outputs"]:
-            return None, "No se encontraron datos en la respuesta"
-        
-        hourly_data = data["outputs"]["hourly"]
-        
-        # Crear DataFrame
-        df = pd.DataFrame(hourly_data)
-        
-        return df, None
-        
-    except requests.exceptions.Timeout:
-        return None, "Timeout: API de PVGIS tardó demasiado en responder"
-    except requests.exceptions.HTTPError as e:
-        return None, f"Error HTTP en PVGIS: {e.response.status_code}"
-    except Exception as err:
-        return None, f"Error al obtener datos de PVGIS: {err}"
+    # URL de PVGIS v5.3
+    base_url = (
+        f"https://re.jrc.ec.europa.eu/api/v5_3/seriescalc?"
+        f"&pvcalculation=1&peakpower=1&outputformat=json"
+        f"&startyear=2018&loss=14&lat={lat}&lon={lon}"
+    )
+
+    # Realizar solicitud
+    r = requests.get(base_url)
+    r.raise_for_status()
+
+    data = r.json()
+    df = pd.DataFrame(data["outputs"]["hourly"])
+
+    # Convertir time a datetime UTC
+    df["time"] = pd.to_datetime(df["time"], format="%Y%m%d:%H%M", utc=True)
+
+    # Convertir a hora local (Europe/Madrid)
+    df["time_local"] = df["time"].dt.tz_convert("Europe/Madrid")
+    df["mes"] = df["time_local"].dt.month
+    df["dia"] = df["time_local"].dt.day
+    df["hora"] = df["time_local"].dt.hour
+
+    # Agrupar por mes, día, hora y calcular promedio de potencia
+    df_prom = df.groupby(["mes", "dia", "hora"], as_index=False)["P"].mean()
+
+    # Obtener mes y día de la fecha especificada
+    mes_fecha = fecha.month
+    dia_fecha = fecha.day
+
+    # Filtrar solo para el día especificado
+    perfil_dia = df_prom[
+        (df_prom["mes"] == mes_fecha) &
+        (df_prom["dia"] == dia_fecha)
+    ].sort_values("hora")
+
+    return perfil_dia
 
 
-__all__ = ["get_PVGIS_data", "grafico_PVGIS", "load_icon"]
+__all__ = ["load_icon", "grafico_PVGIS", "get_PVGIS_data"]
