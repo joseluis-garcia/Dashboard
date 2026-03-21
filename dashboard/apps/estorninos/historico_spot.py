@@ -105,7 +105,7 @@ def load_historico_precios_spot(estaciones=True, efemerides=True):
 # Datos de salida y puesta del sol para superponer en el heatmap
 #===========================
        # df_sun = getSunDataRange(Puerta_Sol,date(2024, 1, 1), date(2025, 12, 31), 15, "Europe/Madrid")
-        df_sun = getSunDataRange(Puerta_Sol,date(2024, 1, 1), date(2025, 12, 31), 15, "UTC")
+        df_sun = getSunDataRange(Puerta_Sol,date(2022, 1, 1), date(2025, 12, 31), 15, "UTC")
 #==========================
 # PUNTOS DE SALIDA DEL SOL
 #==========================

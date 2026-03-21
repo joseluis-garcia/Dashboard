@@ -38,7 +38,7 @@ def insert_prices(conn, data):
 
     # 3. Leer última fecha existente en SQLite
     cur = conn.cursor()
-    cur.execute("SELECT MAX(date) FROM SOM_precio_indexada")
+    cur.execute("SELECT MAX(datetime) FROM SOM_precio_indexada")
     row = cur.fetchone()
     last_existing_utc = row[0]
 
@@ -55,7 +55,7 @@ def insert_prices(conn, data):
 
     return df  # opcional: devolver lo insertado
 
-def update_data( conn):
+def update_Som_data( conn):
     url = "https://api.somenergia.coop/data/indexed_prices?tariff=2.0TD&geo_zone=PENINSULA"
     response, error = safe_request_get(url)
     if error:

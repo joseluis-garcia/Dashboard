@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+import sys
 
 # Añadir la raíz del repo al PYTHONPATH
 from dashboard.comun.mensaje import render_df_proportional
@@ -7,8 +8,8 @@ from dashboard.apps.yesterday.energia_mes import get_energia_mes, grafico_energi
 from dashboard.comun import sql_utilities as db
 from dashboard.apps.yesterday.aerotermia import get_aerotermia_data, grafico_aerotermia, tabla_aerotermia
 from dashboard.apps.yesterday.power_weather_correlation import power_weather_correlation, grafico_prediccion
-import WIBEE_update
-import SOM_update
+from dashboard.apps.yesterday.WIBEE_update import update_WIBEE_data
+from dashboard.apps.yesterday.SOM_update import update_Som_data
 
 conn, error = db.init_db()
 if conn is None:
@@ -132,9 +133,9 @@ elif pagina == "Ajustes":
                 st.success(f"Ejecutando acción para concepto {row['Tabla']} (fila {idx})")
                 
                 if idx == 2:
-                    error = SOM_update.update_data(conn)
+                    error = update_Som_data(conn)
                     st.error(error)
                 if idx == 3:
-                    error = WIBEE_update.update_data(conn)
+                    error = update_WIBEE_data(conn)
                     st.error(error)
 

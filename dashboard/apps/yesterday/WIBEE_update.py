@@ -1,5 +1,5 @@
 #https://nest.wibeee.com/api/auth/3/buildings/35331/meters/56860/channels/3/data?param=P&start=2025-03-17T23:00:00Z&end=2025-03-18T22:59:59Z&time_unit=hourstime,General,Solar,Aerotermia
-
+import streamlit as st
 import pandas as pd
 import requests
 from datetime import datetime, timedelta, timezone
@@ -17,8 +17,10 @@ def getToken():
     global userId 
     global token
     #Use the login function
-    email = "joseluis@garciagruben.org"
-    password = "P3nascal3s"
+    email = st.secrets["WIBEE_email"]
+    #email = "joseluis@garciagruben.org"
+    password = st.secrets["WIBEE_password"]
+    #password = "P3nascal3s"
 
     url = "https://nest.wibeee.com/api/4/users/login"
     headers_token = {
@@ -110,7 +112,7 @@ def getPowerMeasurements ( startDate, endDate):
         print("\nResponse:", response.text)  # Debug server response
         return False
 
-def update_data(conn ):
+def update_WIBEE_data(conn ):
 
     getToken()
     #print (token)
