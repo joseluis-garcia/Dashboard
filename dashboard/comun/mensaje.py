@@ -96,12 +96,13 @@ def show_mensaje() -> None:
     Example:
         >>> show_mensaje()
     """
-    MENSAJE_URL = "https://next.somenergia.coop/s/MzaQLZS3HmJ4ZEB/download?path=%2F&files=mensaje.csv"
-    
+    #MENSAJE_URL = "https://next.somenergia.coop/s/MzaQLZS3HmJ4ZEB/download?path=%2F&files=Mensajes semanal.csv"
+    MENSAJE_URL = "https://next.somenergia.coop/s/zsqtRiKoCSjzcfW/download?path=%2F&files=mensaje_semanal.txt"
+
     try:
         df_mensaje = pd.read_csv(
             MENSAJE_URL,
-            sep=",",
+            sep="|",
             encoding="utf-8-sig"
         )
         # Renderizar tabla con anchos personalizados

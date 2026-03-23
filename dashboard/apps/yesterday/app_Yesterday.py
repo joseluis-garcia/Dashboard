@@ -106,7 +106,7 @@ elif pagina == "Ajustes":
     st.write("Datos actalización de tablas")
     
     st.write("### Tabla con acciones por fila")
-    tables = ['DATADIS_v',"PVGIS", "SOM_precio_indexada", "WIBEE", "METEO" ]
+    tables = ['DATADIS_v',"PVGIS", "SOM_precio_indexada", "WIBEE", "METEO", "ESIOS_spot" ]
     df, error = db.get_tables_info(conn, tables)
     if error:
         st.error(f"Error al obtener información de tablas: {error}")

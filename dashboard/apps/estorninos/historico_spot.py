@@ -3,10 +3,12 @@ import pandas as pd
 from pathlib import Path
 import plotly.graph_objects as go
 from dashboard.comun.date_conditions import getSunDataRange
+from dashboard.comun.sql_utilities import read_sql_ts
 from datetime import date
+import sqlite3
 
 @st.cache_data
-def load_historico_precios_spot(estaciones=True, efemerides=True):
+def load_historico_precios_spot(_conn: sqlite3.Connection, estaciones=True, efemerides=True):
 #==========================
 # Datos historicos de precios spot para heatmap
 #==========================
@@ -14,26 +16,30 @@ def load_historico_precios_spot(estaciones=True, efemerides=True):
 # Estas corrdenadas se utilizan para graficar las salidas y puestas del sol en el heatmap de precios
 
     Puerta_Sol = dict(lat=40.4169, lon=-3.7033)
-
+    df_spot = read_sql_ts("select * from ESIOS_spot", _conn)
 # Ruta al csv dentro de comun con los precios spot 2024-2025
 # Desde: dashboard/apps/estorninos/historico_spot.py
 # A: dashboard/data/spot.csv
-    current_file = Path(__file__)
-    dashboard_dir = current_file.parents[2]  # Sube a dashboard/
-    csv_path = dashboard_dir / "data" / "spot.csv"
+    # current_file = Path(__file__)
+    # dashboard_dir = current_file.parents[2]  # Sube a dashboard/
+    # csv_path = dashboard_dir / "data" / "spot.csv"
   
-    df_spot = pd.read_csv(
-        csv_path,
-        sep=";", 
-        encoding="utf-8-sig")
-    df_spot["datetime"] = pd.to_datetime(df_spot["datetime"], utc=True)
-    df_spot["date"] = df_spot["datetime"].dt.date
-    df_spot["hour"] = df_spot["datetime"].dt.hour
+    # df_spot = pd.read_csv(
+    #     csv_path,
+    #     sep=";", 
+    #     encoding="utf-8-sig")
+    
+    #df_spot["datetime"] = pd.to_datetime(df_spot["datetime"], utc=True)
+    df_spot.index = df_spot.index.tz_convert('Europe/Madrid')
+    df_spot["date"] = df_spot.index.date
+    df_spot["hour"] = (df_spot.index.hour + 
+                      df_spot.index.minute / 60 + 
+                      df_spot.index.second / 3600)
 
 #==========================
 # Prepara datos spot para heatmap
 #==========================
-    price_matrix = df_spot.pivot(index="date", columns="hour", values="value")
+    price_matrix = df_spot.pivot_table(index="date", columns="hour", values="price", aggfunc='mean')
     price_matrix = price_matrix.fillna(0)
     price_matrix = price_matrix.sort_index()  # Asegura orden por fecha
     price_matrix.index = pd.to_datetime(price_matrix.index)

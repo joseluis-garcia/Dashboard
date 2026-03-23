@@ -1,4 +1,5 @@
 import streamlit as st
+import sys
 from datetime import date, datetime, timedelta
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -11,6 +12,13 @@ from dashboard.comun.get_prices_forecast import get_prices_forecast, grafico_pri
 from dashboard.apps.estorninos.historico_spot import load_historico_precios_spot
 from dashboard.apps.estorninos.historico_temperaturas import load_historico_temperaturas
 from dashboard.comun.mensaje import show_mensaje
+from dashboard.comun import sql_utilities as db
+
+conn, error = db.init_db()
+if conn is None:
+    st.error(f"Error al conectar a la base de datos: {error}")
+    sys.exit(1)
+
 # =========================
 # Rango temporal de analisis hoy menos 5 dias y hoy mas 10 dias en futuro
 # =========================
@@ -98,7 +106,7 @@ with tab_curvas:
         st.plotly_chart(fig_forecast, width='stretch', config={"renderer": "svg"})
 # 
 with tab_precios:
-    fig_precios, ticks_mes = load_historico_precios_spot(True, True)
+    fig_precios, ticks_mes = load_historico_precios_spot(conn, True, True)
     st.subheader("Mapa de precios spot histórico")
     st.plotly_chart(fig_precios, width='stretch', key="precios")
 

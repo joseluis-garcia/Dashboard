@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 repo_root = Path(__file__).resolve().parents[1]
 DB_PATH = repo_root / "data" / "measures.db"
 
-TABLE_ORIG = "precios_indexada_som"     # ← tabla con horas locales
+TABLE_ORIG = "SOM_precio_indexada"     # ← tabla con horas locales
 COL_FECHA_LOCAL = "datetime"   # ← columna con la hora local (TEXT)
 TABLE_UTC = "tabla_utc"           # ← nueva tabla a crear
 TZ_LOCAL = "Europe/Madrid"
