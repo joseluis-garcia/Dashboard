@@ -19,7 +19,6 @@ from dashboard.comun.costes_regulados import costes_regulados
 SLOPE = -144.27
 INTERCEPT = 127.12
 
-
 def get_prices_forecast(
     energy: pd.DataFrame,
     spot: pd.DataFrame
@@ -32,7 +31,7 @@ def get_prices_forecast(
     
     Args:
         energy: DataFrame con columnas ['eolica', 'solar', 'demanda', 'renovable']
-        spot: DataFrame con columna 'precio_spot'
+        spot: DataFrame con columna 'Mercado SPOT'
         
     Returns:
         DataFrame con precios spot, estimados y costes regulados
@@ -47,12 +46,12 @@ def get_prices_forecast(
     df_final = energy.join(spot, how="outer")
     
     # Calcular energía renovable (ya está en energy, pero por si acaso)
-    df_final["renovable"] = df_final["eolica"] + df_final["solar"]
+    df_final["renovable"] = df_final["Previsión eólica"] + df_final["Solar fotovoltaica"]
     
     # Calcular precio estimado usando regresión lineal
     # precio_estimado = (renovable/demanda) * slope + intercept
     df_final["precio_estimado"] = (
-        df_final["renovable"] / df_final["demanda"] * SLOPE + INTERCEPT
+        df_final["renovable"] / df_final["Previsión semanal"] * SLOPE + INTERCEPT
     )
 
     # Agregar costes regulados
@@ -60,7 +59,7 @@ def get_prices_forecast(
     
     # Sumar costes regulados a precios (spot y estimado)
     df_final["precio_estimado"] += df_final["costes_regulados"]
-    df_final["precio_spot"] += df_final["costes_regulados"]
+    df_final["Mercado SPOT"] += df_final["costes_regulados"]
     
     return df_final
 
@@ -77,7 +76,7 @@ def grafico_prices_forecast(df_precios: pd.DataFrame) -> go.Figure:
     - Línea vertical marcando el día actual
     
     Args:
-        df_precios: DataFrame con columnas ['precio_estimado', 'precio_spot']
+        df_precios: DataFrame con columnas ['precio_estimado', 'Mercado SPOT']
         
     Returns:
         Figura Plotly (go.Figure)
@@ -131,7 +130,7 @@ def grafico_prices_forecast(df_precios: pd.DataFrame) -> go.Figure:
     fig_estimacion.add_trace(
         go.Scatter(
             x=df_precios.index,
-            y=df_precios["precio_spot"],
+            y=df_precios["Mercado SPOT"],
             mode="lines",
             name="Precio spot",
             line=dict(color="blue", width=2)

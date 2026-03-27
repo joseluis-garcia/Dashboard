@@ -11,7 +11,7 @@ Módulos principales:
 - apps: Tres aplicaciones Streamlit independientes
 
 Ejemplo de uso programático:
-    >>> from dashboard.comun.get_ESIOS_data import get_ESIOS_energy
+    >>> from dashboard.comun.get_ESIOS_forecast import get_ESIOS_energy
     >>> from dashboard.comun.date_conditions import DateConditions
     >>> 
     >>> # Crear condiciones de fecha

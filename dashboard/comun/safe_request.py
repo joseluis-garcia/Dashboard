@@ -14,7 +14,7 @@ def safe_request(
     method: str = "GET",
     params: Optional[dict] = None,
     headers: Optional[dict] = None,
-    timeout: int = 5,
+    timeout: int = 30,
     json_data: Optional[dict] = None
 ) -> Tuple[Optional[requests.Response], Optional[str]]:
     """
@@ -89,7 +89,7 @@ def safe_request_get(
     *,
     params: Optional[dict] = None,
     headers: Optional[dict] = None,
-    timeout: int = 5
+    timeout: int = 60
 ) -> Tuple[Optional[requests.Response], Optional[str]]:
     """
     Realiza un GET request seguro.

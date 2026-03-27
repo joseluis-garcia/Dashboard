@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 import sys
+from datetime import datetime
 
 # Añadir la raíz del repo al PYTHONPATH
 from dashboard.comun.mensaje import render_df_proportional
@@ -10,6 +11,8 @@ from dashboard.apps.yesterday.aerotermia import get_aerotermia_data, grafico_aer
 from dashboard.apps.yesterday.power_weather_correlation import power_weather_correlation, grafico_prediccion
 from dashboard.apps.yesterday.WIBEE_update import update_WIBEE_data
 from dashboard.apps.yesterday.SOM_update import update_Som_data
+from dashboard.apps.yesterday.ESIOS_update import update_ESIOS_history
+from dashboard.apps.yesterday.mostrar_factura import mostrar_factura
 
 conn, error = db.init_db()
 if conn is None:
@@ -53,7 +56,7 @@ st.markdown("""
 st.set_page_config(layout="wide")
 st.sidebar.title("Menú")
 
-pagina = st.sidebar.radio("Ir a:", ["Aerotermia", "Producción mes", "Correlacion", "Ajustes"])
+pagina = st.sidebar.radio("Ir a:", ["Aerotermia", "Producción mes", "Correlacion Solar", "Factura", "Ajustes"])
 if pagina == "Aerotermia":
     with st.container():
         st.header("Consumo aerotermia vs temperaturas")
@@ -101,12 +104,30 @@ elif pagina == "Correlacion":
     fig = grafico_prediccion(df)
     st.plotly_chart(fig, width='stretch')
 
+elif pagina == "Factura":
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        month = st.selectbox("Mes", range(1, 13), format_func=lambda x: datetime(2000, x, 1).strftime('%B'))
+
+    with col2:
+        year = st.selectbox("Año", range(2024, 2027))
+
+    with col3:
+        st.write("")  # spacer para alinear el botón
+        st.write("")
+        ejecutar = st.button("Cargar datos")
+
+    if ejecutar:
+        texto = mostrar_factura(conn, month, year)
+        st.write(texto)
+
 elif pagina == "Ajustes":
     st.header("Ajustes")
     st.write("Datos actalización de tablas")
     
     st.write("### Tabla con acciones por fila")
-    tables = ['DATADIS_v',"PVGIS", "SOM_precio_indexada", "WIBEE", "METEO", "ESIOS_spot" ]
+    tables = ['DATADIS_v',"PVGIS", "SOM_precio_indexada", "WIBEE", "METEO", "ESIOS_data"]
     df, error = db.get_tables_info(conn, tables)
     if error:
         st.error(f"Error al obtener información de tablas: {error}")
@@ -137,5 +158,8 @@ elif pagina == "Ajustes":
                     st.error(error)
                 if idx == 3:
                     error = update_WIBEE_data(conn)
+                    st.error(error)
+                if idx == 5:
+                    msg, error = update_ESIOS_history(conn)
                     st.error(error)
 

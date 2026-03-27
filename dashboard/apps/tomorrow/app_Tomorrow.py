@@ -6,7 +6,7 @@ import pytz
 # Añadir la raíz del repo al PYTHONPATH
 from dashboard.comun import date_conditions as dc
 from dashboard.comun.async_tasks import run_async, async_placeholder
-from dashboard.comun.get_ESIOS_data import get_ESIOS_energy, get_ESIOS_spot
+from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast, get_ESIOS_spot
 from dashboard.comun.get_user_location import borrar_user_location, get_user_location
 from dashboard.comun.get_prices_Som import grafico_prices_Som, get_prices_Som
 from dashboard.comun.get_prices_forecast import get_prices_forecast, grafico_prices_forecast
@@ -116,7 +116,7 @@ if mostrar_precios:
             Solo es válida la forma de la curva y sirve para detectar puntos de precios muy altos o bajos.
             Cuando la curva de precios estimados es muy negativa es probable que el precio real sea cercano a cero.
             """)
-        df_energy, error = get_ESIOS_energy(rango)
+        df_energy, error = get_ESIOS_energy_forecast(rango)
         if error:
             st.error("No se han podido obtener los datos de energía de ESIOS.")
             st.error(error)
