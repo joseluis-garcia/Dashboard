@@ -83,17 +83,18 @@ def get_indicator(indicator_id: int, date_range: RangoFechas, time_trunc: str = 
     df["datetime"] = pd.to_datetime(df["datetime"], utc=True)
     df["datetime"] = df["datetime"].dt.tz_localize(None)
     df = df.set_index("datetime").sort_index()
-    print(f"Retornadas {len(df)} filas")
+    #print(f"Retornadas {len(df)} filas\n")
     
     #En IND_SPOT devuelve precios de diversos paises, nos debemos quedar solo con España
     if indicator_id == IND_SPOT:
         df = df[df['geo_name'] == 'España']
-        print(f"Filtradas España {len(df)} filas")
+        #print(f"Filtradas España {len(df)} filas")
     #Como los distintos indicators vienen con diferente timestamp y la funcion de agregación de ESIOS (time_trunc) no garantiza que metodo utiliza debemos hacerlo nosotros
     if time_trunc is not None:
         df = df.select_dtypes(include='number').resample(time_trunc).mean()
-    print(f"Resampling final {len(df)} filas")
-    df["variable"] = variable
+
+    df = df[[ "value"]].rename(columns={"value": variable})
+    #print(f"Resampling final {len(df)} filas de {variable} en {df.head()}")
     return df, None
 
 def fetch_multiple_indicators(indicator_ids: list[int], rango: RangoFechas, max_workers: int = 10) -> pd.DataFrame:
@@ -113,9 +114,7 @@ def fetch_multiple_indicators(indicator_ids: list[int], rango: RangoFechas, max_
                 if error:
                     print (f"Error en indicador {ind_id}: {error}")
                 else:
-                    df_pivot = result[['variable', 'value']].pivot( columns='variable', values='value')
-                    df_pivot.columns.name = None
-                    dfs.append(df_pivot)
+                    dfs.append(result)
             except Exception as e:
                 print(f"Error en indicator {ind_id}: {e}")
 
@@ -215,7 +214,6 @@ def get_ESIOS_spot(rango: RangoFechas) -> Tuple[Optional[pd.DataFrame], Optional
     if error:
         return None, error
 
-    spot = spot[["value"]].rename(columns={"value": "Mercado SPOT"})
     return spot, None
 
 __all__ = ["get_ESIOS_energy_forecast", "get_ESIOS_spot", "grafico_ESIOS_energy_history"]

@@ -7,7 +7,8 @@ import pytz
 
 # Añadir la raíz del repo al PYTHONPATH
 from dashboard.comun import date_conditions as dc
-from dashboard.comun.get_ESIOS_forecast import get_ESIOS_energy, get_ESIOS_spot, grafico_ESIOS_energy
+from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast, get_ESIOS_spot
+from dashboard.comun.grafico_ESIOS_energy import grafico_ESIOS_energy
 from dashboard.comun.get_prices_forecast import get_prices_forecast, grafico_prices_forecast
 from dashboard.apps.estorninos.historico_spot import load_historico_precios_spot
 from dashboard.apps.estorninos.historico_temperaturas import load_historico_temperaturas
@@ -85,7 +86,7 @@ tab_curvas, tab_precios, tab_temperaturas, tab_summary = st.tabs(["Curvas", "Pre
 with tab_curvas:
     st.info(f"Rango de fechas: {rango['start_date']} → {rango['end_date']}")
     st.subheader("Predicción Energia")
-    df_energia, error = get_ESIOS_energy(rango)
+    df_energia, error = get_ESIOS_energy_forecast(rango)
     if error:
         st.error(f"Error al obtener datos de energía: {error}")
     else:

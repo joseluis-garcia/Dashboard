@@ -44,7 +44,6 @@ def get_prices_forecast(
     """
     # Combinar energía y spot
     df_final = energy.join(spot, how="outer")
-    
     # Calcular energía renovable (ya está en energy, pero por si acaso)
     df_final["renovable"] = df_final["Previsión eólica"] + df_final["Solar fotovoltaica"]
     
@@ -110,9 +109,8 @@ def grafico_prices_forecast(df_precios: pd.DataFrame) -> go.Figure:
             fig_estimacion.add_vrect(
                 x0=festivo,
                 x1=festivo + pd.Timedelta(days=1),
-                fillcolor="indianred",
-                opacity=0.15,
-                line_width=0
+                line=dict(color="rgba(150,150,150,0.6)", width=1.5),
+                fillcolor="rgba(170,100,100,0.2)",
             )
 
     # Línea de precio estimado
