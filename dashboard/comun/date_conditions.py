@@ -17,6 +17,7 @@ import holidays
 import streamlit as st
 import ephem
 from zoneinfo import ZoneInfo
+import plotly.graph_objects as go
 
 
 class RangoFechas(TypedDict):
@@ -268,7 +269,6 @@ def getSunData(
         "noon": noon.hour + noon.minute / 60
     }
 
-
 @st.cache_data
 def getSunDataRange(
     coord: Coord, 
@@ -380,7 +380,7 @@ def load_icon(relative_path: str) -> str:
     
     return "data:image/png;base64," + encoded
 
-def add_sun_data(fig,lat: float, lon: float, fecha: datetime):
+def add_sun_data(fig: go.Figure, lat: float, lon: float, fecha: datetime):
 
     sun_data = getSunData(lat, lon, fecha, tz_local="Europe/Madrid")
     

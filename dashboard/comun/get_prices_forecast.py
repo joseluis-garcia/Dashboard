@@ -63,6 +63,6 @@ def get_prices_forecast(rango: dc.RangoFechas) -> Tuple[Optional[pd.DataFrame], 
     df_final["precio_estimado"] += df_final["costes_regulados"]
     df_final["Mercado SPOT"] += df_final["costes_regulados"]
     
-    return df_final
+    return df_final, None
 
 __all__ = ["get_prices_forecast"]

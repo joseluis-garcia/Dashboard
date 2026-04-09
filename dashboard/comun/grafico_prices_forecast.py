@@ -39,7 +39,10 @@ def grafico_prices_forecast(rango: dc.RangoFechas) -> Tuple[Optional[go.Figure],
         >>> fig.show()
     """
 
-    df_precios = get_prices_forecast(rango)
+    df_precios, error = get_prices_forecast(rango)
+    if error:
+        return None, error
+
     fig_estimacion = go.Figure()
 
     # Añadir rectángulos en los fines de semana
