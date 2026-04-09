@@ -7,9 +7,9 @@ import pytz
 
 # Añadir la raíz del repo al PYTHONPATH
 from dashboard.comun import date_conditions as dc
-from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast, get_ESIOS_spot
+from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast
 from dashboard.comun.grafico_ESIOS_energy import grafico_ESIOS_energy
-from dashboard.comun.get_prices_forecast import get_prices_forecast, grafico_prices_forecast
+from dashboard.comun.grafico_prices_forecast import grafico_prices_forecast
 from dashboard.apps.estorninos.historico_spot import load_historico_precios_spot
 from dashboard.apps.estorninos.historico_temperaturas import load_historico_temperaturas
 from dashboard.comun.mensaje import show_mensaje
@@ -98,12 +98,11 @@ with tab_curvas:
 # =========================
     st.subheader("Predicción Precios")
     show_mensaje()  
-    df_precios, error = get_ESIOS_spot(rango)
+
+    fig_forecast, error = grafico_prices_forecast(rango)
     if error:
-        st.error(f"Error al obtener datos de precios spot: {error}")
-    else:    
-        df_final = get_prices_forecast(df_energia, df_precios)
-        fig_forecast = grafico_prices_forecast(df_final)
+        st.error(f"Error al crear gráfico de precios: {error}")
+    else:
         st.plotly_chart(fig_forecast, width='stretch', config={"renderer": "svg"})
 # 
 with tab_precios:

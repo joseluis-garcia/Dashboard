@@ -15,7 +15,7 @@ def load_historico_precios_spot(_conn: sqlite3.Connection, estaciones=True, efem
 #=========================
 # Estas corrdenadas se utilizan para graficar las salidas y puestas del sol en el heatmap de precios
 
-    Puerta_Sol = dict(lat=40.4169, lon=-3.7033)
+    PUERTA_SOL = dict(lat=40.4169, lon=-3.7033)
     df_spot = read_sql_ts("select * from ESIOS_spot", _conn)
 # Ruta al csv dentro de comun con los precios spot 2024-2025
 # Desde: dashboard/apps/estorninos/historico_spot.py
@@ -110,8 +110,8 @@ def load_historico_precios_spot(_conn: sqlite3.Connection, estaciones=True, efem
 #===========================
 # Datos de salida y puesta del sol para superponer en el heatmap
 #===========================
-       # df_sun = getSunDataRange(Puerta_Sol,date(2024, 1, 1), date(2025, 12, 31), 15, "Europe/Madrid")
-        df_sun = getSunDataRange(Puerta_Sol,date(2022, 1, 1), date(2025, 12, 31), 15, "UTC")
+       # df_sun = getSunDataRange(PUERTA_SOL,date(2024, 1, 1), date(2025, 12, 31), 15, "Europe/Madrid")
+        df_sun = getSunDataRange(PUERTA_SOL,date(2022, 1, 1), date(2025, 12, 31), 15, "UTC")
 #==========================
 # PUNTOS DE SALIDA DEL SOL
 #==========================

@@ -34,12 +34,6 @@ def mostrar_weather( frame, header):
         # # Connect to the SQLite database
         conn = sqlite3.connect("measures.db")
 
-        #sql = "select S.date as date, S.solar_Wh as solar_Wh, S.power_Wp as power_Wp, V.solarradiation as solarradiation from SWIBE_v as S, VXSING_hours as V where S.date = V.date and ORDER by s.date;"
-
-        #sql = "select S.date as date, S.solar_Wh as solar_Wh, S.power_Wp as power_Wp, V.solarradiation as solarradiation from SWIBE_v as S, VXSING_hours as V where S.date = V.date and date(S.date) = '2024-09-30'" 
-
-        #sql = "SELECT S.date, S.solar_Wh, S.power_Wp, V.solarradiation FROM SWIBE_v S JOIN VXSING_hours V ON DATE(S.date) = DATE(V.date) AND strftime('%H', S.date) = strftime('%H', V.date) ORDER BY S.date;"
-
         sql = f"SELECT date, cloudcover, solarradiation FROM VXSING_hours where solarradiation > 200 order by date;"
         vxsing = pd.read_sql_query(sql, conn, index_col=None, coerce_float=True, params=None, parse_dates=True, chunksize=None, dtype=None)
         vxsing["date"] = pd.to_datetime(vxsing["date"])

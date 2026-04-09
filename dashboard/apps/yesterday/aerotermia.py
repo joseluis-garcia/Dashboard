@@ -42,7 +42,7 @@ def get_aerotermia_data( conn):
     df_cost["cost"] = df_cost["price"] * df_cost["energy"]
 
     #Get weather data from VXSING
-    query = "SELECT date as datetime, temp from VXSING_hours where datetime >= '{0}' and datetime <= '{1}' order by datetime".format(dateMin, dateMax)
+    query = "SELECT datetime, temperature as temp from METEO where datetime >= '{0}' and datetime <= '{1}' order by datetime".format(dateMin, dateMax)
     df_temp = read_sql_ts(query, conn)
 
     #Merge all data in one final dataframe

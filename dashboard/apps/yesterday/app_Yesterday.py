@@ -3,16 +3,20 @@ import streamlit as st
 import sys
 from datetime import datetime
 
-# Añadir la raíz del repo al PYTHONPATH
+import dashboard.comun.sql_utilities as db
+
+
 from dashboard.comun.mensaje import render_df_proportional
 from dashboard.apps.yesterday.energia_mes import get_energia_mes, grafico_energia_mes
-from dashboard.comun import sql_utilities as db
+from dashboard.comun.grafico_solar_today import grafico_solar_today
+from dashboard.apps.yesterday.mostrar_factura import mostrar_factura
 from dashboard.apps.yesterday.aerotermia import get_aerotermia_data, grafico_aerotermia, tabla_aerotermia
 from dashboard.apps.yesterday.power_weather_correlation import power_weather_correlation, grafico_prediccion
-from dashboard.apps.yesterday.WIBEE_update import update_WIBEE_data
-from dashboard.apps.yesterday.SOM_update import update_Som_data
-from dashboard.apps.yesterday.ESIOS_update import update_ESIOS_history
-from dashboard.apps.yesterday.mostrar_factura import mostrar_factura
+
+from dashboard.comun.get_openmeteo import update_openmeteo_history
+from dashboard.comun.get_Som_data import update_Som_history
+from dashboard.comun.get_ESIOS_data import update_ESIOS_history
+from dashboard.comun.get_WIBEE_data import update_WIBEE_history
 
 conn, error = db.init_db()
 if conn is None:
@@ -56,7 +60,7 @@ st.markdown("""
 st.set_page_config(layout="wide")
 st.sidebar.title("Menú")
 
-pagina = st.sidebar.radio("Ir a:", ["Aerotermia", "Producción mes", "Correlacion Solar", "Factura", "Ajustes"])
+pagina = st.sidebar.radio("Ir a:", ["Aerotermia", "Producción mes", "Producción dia", "Correlacion Solar", "Factura", "Ajustes"])
 if pagina == "Aerotermia":
     with st.container():
         st.header("Consumo aerotermia vs temperaturas")
@@ -99,7 +103,15 @@ elif pagina == "Producción mes":
         fig = grafico_energia_mes(df_monthly_autoconsumo, title="Autoconsumo mensual de energía (kWh) por año")
         st.plotly_chart(fig, width='stretch')
 
-elif pagina == "Correlacion":
+elif pagina == "Producción dia":
+    st.header("Datos diarios de producción de energía solar")
+    grafico_solar, error = grafico_solar_today(conn)
+    if error:
+        st.error(error)
+    else:
+        st.plotly_chart(grafico_solar, width='stretch')
+
+elif pagina == "Correlacion Solar":
     df = power_weather_correlation( conn)
     fig = grafico_prediccion(df)
     st.plotly_chart(fig, width='stretch')
@@ -154,12 +166,27 @@ elif pagina == "Ajustes":
                 st.success(f"Ejecutando acción para concepto {row['Tabla']} (fila {idx})")
                 
                 if idx == 2:
-                    error = update_Som_data(conn)
-                    st.error(error)
+                    resultado, error = update_Som_history(conn)
+                    if error:
+                        st.error(error)
+                    else:
+                        st.success(resultado)
                 if idx == 3:
-                    error = update_WIBEE_data(conn)
-                    st.error(error)
+                    resultado, error = update_WIBEE_history(conn)
+                    if error:
+                        st.error(error)
+                    else:
+                        st.success(resultado)
+                if idx == 4:
+                    resultado, error = update_openmeteo_history(conn)
+                    if error:
+                        st.error(error)
+                    else:
+                        st.success(resultado)
                 if idx == 5:
-                    msg, error = update_ESIOS_history(conn)
-                    st.error(error)
+                    resultado, error = update_ESIOS_history(conn)
+                    if error:
+                        st.error(error)
+                    else:
+                        st.success(resultado)
 

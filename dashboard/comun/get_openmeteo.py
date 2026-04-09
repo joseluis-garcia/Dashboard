@@ -15,104 +15,16 @@ import streamlit as st
 import openmeteo_requests
 import requests_cache
 from retry_requests import retry
+from dbm import sqlite3
+from typing import Tuple, Optional, Dict, Any
+import openmeteo_requests
+import pandas as pd
+import requests_cache
+from retry_requests import retry
+from datetime import datetime, timedelta, timezone
 
-
-@st.cache_data
-def grafica_meteo(df: pd.DataFrame) -> go.Figure:
-    """
-    Crea gráfico interactivo de datos meteorológicos.
-    
-    Genera un gráfico con:
-    - Barras de nubosidad (eje Y derecho, %)
-    - Línea de temperatura (eje Y izquierdo, °C)
-    - Barras de probabilidad de lluvia (eje Y derecho, %)
-    
-    Args:
-        df: DataFrame con columnas ['time', 'temperature_2m', 'cloud_cover', 
-            'precipitation_probability']
-        
-    Returns:
-        Figura Plotly (go.Figure)
-        
-    Example:
-        >>> df, _ = get_meteo_7D(40.4169, -3.7033, 0)
-        >>> fig = grafica_meteo(df)
-        >>> fig.show()
-    """
-    # Crear figura con doble eje Y
-    fig = make_subplots(
-        rows=1, cols=1,
-        specs=[[{"secondary_y": True}]]
-    )
-
-    # Barras de nubosidad
-    fig.add_trace(
-        go.Bar(
-            x=df["time"],
-            y=df["cloud_cover"],
-            width=60 * 60 * 1000,  # 1 hora en ms
-            name="Nubosidad (%)",
-            marker_color="rgba(150,150,150,0.25)",
-            yaxis="y2"
-        )
-    )
-
-    # Línea de temperatura
-    fig.add_trace(
-        go.Scatter(
-            x=df["time"],
-            y=df["temperature_2m"],
-            mode="lines",
-            name="Temperatura (°C)",
-            line=dict(color="tomato", width=2, shape="spline", smoothing=1.3)
-        )
-    )
-
-    # Asegurar que la temperatura queda por encima de nubosidad
-    fig.data[-1].update(zorder=10)
-
-    # Barras de probabilidad de lluvia
-    fig.add_trace(
-        go.Bar(
-            x=df["time"],
-            y=df["precipitation_probability"],
-            name="Prob. lluvia (%)",
-            marker_color="#00a000",
-            yaxis="y2"
-        )
-    )
-
-    # Configuración de ejes
-    fig.update_yaxes(
-        title_text="Temperatura (°C)",
-        showgrid=True,
-        zeroline=False,
-        secondary_y=False
-    )
-
-    fig.update_yaxes(
-        title_text="%",
-        showgrid=False,
-        zeroline=False,
-        secondary_y=True,
-        overlaying="y"
-    )
-
-    fig.update_layout(
-        xaxis=dict(title="Fecha y hora"),
-        legend=dict(orientation="h", y=-0.3, x=0.5, xanchor="center"),
-        hovermode="x unified",
-        margin=dict(l=0, r=0, t=0, b=0),
-        autosize=True,
-        height=400
-    )
-
-    fig.update_xaxes(
-        showgrid=True,
-        gridcolor="rgba(255,255,255,0.15)"
-    )
-
-    return fig
+from dashboard.comun import sql_utilities as db
+import dashboard.apps.config as TCB
 
 
 def get_meteo_7D(
@@ -161,7 +73,7 @@ def get_meteo_7D(
                 "precipitation_probability",
                 "direct_radiation"
             ],
-            "timezone": "UTC",
+            "timezone": TCB.TIMEZONE_LOCAL,
             "azimuth": azimuth
         }
 
@@ -241,5 +153,109 @@ def get_meteo_hours(
     ]
     return df_hours
 
+def update_openmeteo_history(
+		conn: Optional[sqlite3.Connection] = None) -> Tuple[
+			Optional[pd.DataFrame], 
+			Optional[str]]:
 
-__all__ = ["get_meteo_7D", "get_meteo_hours", "grafica_meteo"]
+    if conn is None:
+        # Connect to SQLite database
+        conn, error = db.init_db()
+        if error:
+            return None, f"Error al conectar a la base de datos: {error}"
+
+    #Previous data recorded until
+    df = pd.read_sql_query("SELECT MAX(datetime) as maxDate FROM METEO", conn, parse_dates=["maxDate"])
+    df["maxDate"] = pd.to_datetime(df["maxDate"])
+    startDate = df["maxDate"].iloc[0] + pd.Timedelta(days=1)
+    # Get the current UTC time
+    endDate = datetime.now(timezone.utc) + timedelta(days=-1)
+
+    # Convert the datetime object to a string
+    strStartDate = startDate.strftime("%Y-%m-%d")
+    strEndDate = endDate.strftime("%Y-%m-%d")
+	
+    params = {
+        "latitude": TCB.CASA['lat'],
+        "longitude": TCB.CASA['lon'],
+        "start_date": strStartDate,
+        "end_date": strEndDate,
+        "hourly": ["temperature_2m", "precipitation", "cloud_cover", "global_tilted_irradiance_instant"],      
+        "timezone": TCB.TIMEZONE_LOCAL,
+        "azimuth": TCB.AZIMUTH,
+        "tilt": 10
+    }
+
+	# Setup the Open-Meteo API client with cache and retry on error
+    print(f"Solicitando datos meteorológicos desde {params['start_date']} hasta {params['end_date']}")
+    cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
+    retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
+    #openmeteo = openmeteo_requests.Client(session = retry_session)
+
+	# Make sure all required weather variables are listed here
+	# The order of variables in hourly or daily is important to assign them correctly below
+	
+    url = "https://archive-api.open-meteo.com/v1/archive"
+    print(f"Solicitando datos meteorológicos desde {params['start_date']} hasta {params['end_date']}")
+
+    responses = openmeteo_requests.Client().weather_api(url, params=params)
+    if not responses:
+        return None, "No se recibieron datos de Open-Meteo"
+
+    # Process first location. Add a for-loop for multiple locations or weather models
+    response = responses[0]
+    hourly = response.Hourly()
+	  
+	# Process hourly data. The order of variables needs to be the same as requested.
+    hourly_data = {
+        "datetime": pd.date_range(
+            start = pd.to_datetime(hourly.Time(), unit = "s", utc = True),
+            end =  pd.to_datetime(hourly.TimeEnd(), unit = "s", utc = True),
+            freq = pd.Timedelta(seconds = hourly.Interval()),
+            inclusive = "left"),
+        "temperature": hourly.Variables(0).ValuesAsNumpy(),
+        "precipitation": hourly.Variables(1).ValuesAsNumpy(),
+        "cloud_cover": hourly.Variables(2).ValuesAsNumpy(),
+        "direct_radiation": hourly.Variables(3).ValuesAsNumpy()
+    }
+	
+    hourly_df = pd.DataFrame(data = hourly_data)
+
+    hourly_df["datetime"] = (
+        pd.to_datetime(hourly_df["datetime"], utc=True)
+        .dt.tz_localize(None)
+    )
+
+    df = hourly_df.set_index("datetime").sort_index()
+
+    try:
+        # Create the table if it doesn't exist
+        cursor = conn.cursor()
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS METEO (
+            datetime DATE,
+            temperature REAL,
+            cloud_cover REAL,
+            precipitation REAL,
+            direct_radiation REAL
+        )
+        ''')
+        conn.commit()
+
+        # Insert data into the table
+        df.to_sql('METEO', conn, if_exists='append', index=True)
+        return f"Insertadas {len(df)} en METEO", None
+	
+    except Exception as e:
+        return None, f"Error al insertar datos en la base de datos: {e}"
+
+if __name__ == "__main__":
+	df, resultado = update_openmeteo_history()
+
+	if resultado is not None:
+		print(f"Resultado: {resultado}")
+
+	if df is not None:
+		print(f"Datos insertados:\n{df.head()}")
+		
+__all__ = ["get_meteo_7D", "get_meteo_hours"]

@@ -1,5 +1,5 @@
 """
-Módulo para obtener datos historicos de ESIOS en base a una lista de indicators.
+Módulo para obtener datos historicos y forecast de ESIOS en base a una lista de indicators. Tambien permite actualizar tabla ESIOS_data en measurements.db
 
 Proporciona funciones
 - get_indicator: Obtiene los valores de un indicador ESIOS
@@ -7,10 +7,13 @@ Proporciona funciones
 - get_ESIOS_energy_forecast: Previsiones de energía eólica, solar fotovoltaica y demanda
 - get_ESIOS_energy_history: Datos historicos de energía de multiples fuente no CO2
 - get_ESIOS_spot: Precio del mercado spot diario
+- update_ESIOS_history: Actualiza la tabla ESIOS_data con los datos historicos de energía y precio spot desde la última fecha registrada hasta la fecha actual
 """
+from dbm import sqlite3
 from typing import Tuple, Optional, Dict, Any
 import pandas as pd
 import streamlit as st
+from datetime import datetime, timedelta, timezone
 
 from dashboard.comun.safe_request import safe_request_get
 from dashboard.comun.date_conditions import RangoFechas
@@ -79,7 +82,6 @@ def get_indicator(indicator_id: int, date_range: RangoFechas, time_trunc: str = 
     variable = json_data["indicator"]["short_name"]
 
     df = pd.DataFrame(data)
-
     df["datetime"] = pd.to_datetime(df["datetime"], utc=True)
     df["datetime"] = df["datetime"].dt.tz_localize(None)
     df = df.set_index("datetime").sort_index()
@@ -156,7 +158,7 @@ def get_ESIOS_energy_forecast(rango: RangoFechas) -> Tuple[Optional[pd.DataFrame
 
 def get_ESIOS_energy_history( rango: RangoFechas) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """
-    Obtiene datos de energía (eólica, solar y demanda) de ESIOS.
+    Obtiene datos de energía por fuente y demanda de ESIOS.
     
     Obtiene las previsiones de energía eólica, solar fotovoltaica y demanda
     del sistema eléctrico español para el rango de fechas especificado.
@@ -166,7 +168,7 @@ def get_ESIOS_energy_history( rango: RangoFechas) -> Tuple[Optional[pd.DataFrame
         
     Returns:
         Tupla (dataframe, error) donde:
-        - dataframe: DataFrame con columnas ['eolica', 'solar', 'demanda', 'renovable']
+        - dataframe: DataFrame con columnas con el nombre corto de los indicadores de fuente de energía y demanda (Mercado SPOT)
         - error: None si es exitoso, mensaje de error si falla
         
     Raises:
@@ -216,4 +218,44 @@ def get_ESIOS_spot(rango: RangoFechas) -> Tuple[Optional[pd.DataFrame], Optional
 
     return spot, None
 
-__all__ = ["get_ESIOS_energy_forecast", "get_ESIOS_spot", "grafico_ESIOS_energy_history"]
+def update_ESIOS_history(conn: sqlite3.Connection) -> Tuple[Optional[str], Optional[str]]:
+
+    try:
+        #Previous data recorded until
+        df = pd.read_sql_query("SELECT MAX(datetime) as maxDate FROM ESIOS_data", conn, parse_dates=["maxDate"])
+        df["maxDate"] = pd.to_datetime(df["maxDate"])
+        startDate = df["maxDate"].iloc[0] + timedelta(hours=1)
+        strStartDate = startDate.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        # Get the current UTC time
+        endDate = datetime.now(timezone.utc) + timedelta(hours=-1)
+        # Teniendo probelmas de carga limitamos a 30 dias
+        endDate = startDate+ timedelta(days=15)
+        # Convert the datetime object to a string
+        strEndDate = endDate.strftime("%Y-%m-%dT%H:%M:%SZ")
+        
+        rango = {
+            'start_date': strStartDate,
+            'end_date': strEndDate
+        }
+        print(f"Solicitando datos spot desde {rango['start_date']} hasta {rango['end_date']}")
+        df_spot, error = get_ESIOS_spot(rango)
+        if error:
+            return None, error
+        
+        print(f"Solicitando datos energia desde {rango['start_date']} hasta {rango['end_date']}")
+        df_energy, error = get_ESIOS_energy_history(rango)
+        if error:
+            return None, error
+        
+        print("Uniendo datos de energia y SPOT")
+        df_final = pd.concat([df_energy, df_spot], axis=1).reset_index()
+
+        print(f"Insertando filas {df_final.head()} en la base de datos")
+        df_final.to_sql('ESIOS_data', conn, if_exists='append', index=False )
+
+        return f"Insertadas {len(df_final)} en ESIOS_data", None
+    except Exception as e:
+        return None, f"Error al insertar datos en la tabla ESIOS_data: {e}"
+
+__all__ = ["get_ESIOS_energy_forecast", "get_ESIOS_spot", "get_ESIOS_energy_history", "update_ESIOS_history"]

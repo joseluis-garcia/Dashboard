@@ -1,12 +1,11 @@
 import pandas as pd
-from dashboard.comun.sql_utilities import read_sql_ts
-import tkinter as tk
-from tkinter import ttk
-import sqlite3
-from datetime import datetime, date
-from tkcalendar import Calendar
 import calendar
+
+from datetime import datetime, date
+
 from dashboard.comun.date_conditions import periodo_2_0TD
+from dashboard.comun.sql_utilities import read_sql_ts
+from dashboard.comun.get_ESIOS_data import get_ESIOS_spot
 
 # # List of months
 # months = [
@@ -48,52 +47,33 @@ def mostrar_factura(conn, month, year):
             energy[["consumo", "excedente"]] = energy["general_Wh"].apply(compute_values)
 
         energy['tarifa'] = energy.index.map(lambda x:periodo_2_0TD(x))
-        print(query)         
-        print("Consumo", energy['consumo'].sum())
-        print("Excedente", energy['excedente'].sum())    
-        print( energy.head(24))
-
         if energy.empty:
             raise ValueError("The Source DataFrame is empty!")
 
     # Buscamos los precios
-
         if year <= 2025:
             tabla = "SOM_precios_indexada_real"
         else:
             tabla = "SOM_precio_indexada"
 
         query = f"SELECT * from {tabla} where strftime('%Y-%m', datetime) = '{mes_factura}';"
-
-        print(query)
-        prices = read_sql_ts(query, conn)
-
-        if prices.empty:
-            raise ValueError("The Prices DataFrame is empty!")
+        prices_Som = read_sql_ts(query, conn)
+        if prices_Som.empty:
+            raise ValueError("The Som Prices DataFrame is empty!")
+        
+        col = '"Mercado SPOT"'
+        query = f"SELECT datetime, {col} from  ESIOS_data where strftime('%Y-%m', datetime) = '{mes_factura}';"
+        prices_SPOT = read_sql_ts(query, conn)
+        if prices_SPOT.empty:
+            raise ValueError("The SPOT Prices DataFrame is empty!")
+        print("Energy:\n", energy.head())
+        print("SOM Prices:\n", prices_Som.head())
+        print("SPOT Prices:\n", prices_SPOT.head())
     
-
-        #prices['datetime'] = pd.to_datetime(prices['datetime'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
-        print("Prices\n")
-        print(prices)
-
-        price_20TD = {'P1':0.229,'P2':0.153,'P3':0.125, 'Excedente':0.03}
-        # #Ensure that the date columns are the same format
-        # energy['datetime'] = pd.to_datetime(energy['datetime'])
-        # prices['datetime'] = pd.to_datetime(prices['datetime'])
-
-        # # Set the date columns as index to align both DataFrames on date
-        # energy.set_index('datetime', inplace=True)
-        # prices.set_index('datetime', inplace=True)
-
-        # Perform the multiplication on the numeric columns only
-        # df_cost = energy.multiply(prices)
-        df_cost = energy.merge(prices, left_index=True, right_index=True, how='inner')
-        print(df_cost.head(5))
-
-        # Reset the index to bring 'date' back as a column
-        # df_cost.reset_index(inplace=True)
-        # energy.reset_index(inplace=True)
-
+        prices_20TD = {'P1':0.229,'P2':0.153,'P3':0.125, 'Excedente':0.03}
+        df_cost = energy.join([prices_Som, prices_SPOT], how='inner')
+        
+        print("Joined DataFrame:\n", df_cost.head())
         def calcular_coste(row):
             consumo = row['consumo']
             excedente = row['excedente']
@@ -102,13 +82,13 @@ def mostrar_factura(conn, month, year):
                 return pd.Series({
                     'cargo': 0,
                     'cargo_20TD': 0,
-                    'compensacion': excedente * precio_excedente / 1000,
-                    'compensacion_20TD': excedente * price_20TD['Excedente'] / 1000
+                    'compensacion': excedente * row['Mercado SPOT'] / 1000,
+                    'compensacion_20TD': excedente * prices_20TD['Excedente'] / 1000
                 })
             else:
                 return pd.Series({
                     'cargo': consumo * precio_cargo / 1000,
-                    'cargo_20TD': consumo * price_20TD[row['tarifa']] / 1000,
+                    'cargo_20TD': consumo * prices_20TD[row['tarifa']] / 1000,
                     'compensacion': 0,
                     'compensacion_20TD': 0
                 })
@@ -134,13 +114,12 @@ def mostrar_factura(conn, month, year):
         euro_excedente = df_monthly['compensacion'].sum()
         euro_excedente_20TD = df_monthly['compensacion_20TD'].sum()
         
-        #df_monthly['energy'] = df_energy['consumo'].sum()
         total_energy = energy['consumo'].sum() / 1000
         total_excedente = energy['excedente'].sum() / 1000
 
         bono_social = cteBonoSocial * days_in_month
 
-        print("MONTHLY", df_monthly, "TOTAL", total_energy)
+        print("MONTHLY", df_monthly.head(24))
 
         # Insert text with formatting
         reporte = f"Factura del mes de {mes_factura}\n\n"

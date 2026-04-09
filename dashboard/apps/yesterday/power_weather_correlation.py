@@ -121,8 +121,8 @@ def power_weather_correlation( conn):
     print(metrics)
 
     # 5. Predecir futuro
-    Casa = dict(lat=40.5661,lon=3.8998)
-    df_long, error = get_meteo_7D(Casa['lat'], Casa['lon'], 45)
+    CASA = dict(lat=40.5661,lon=3.8998)
+    df_long, error = get_meteo_7D(CASA['lat'], CASA['lon'], 45)
     df_short = get_meteo_hours(df_long, 24)
     df_weather_forecast = df_short.rename(columns={
         "temperature_2m":"temperature",

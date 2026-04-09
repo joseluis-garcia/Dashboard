@@ -13,14 +13,21 @@ dashboard-energy/
 │   │
 │   ├── comun/                      # Funciones compartidas
 │   │   ├── date_conditions.py      # Utilidades de fechas, festivos, cálculos solares
-│   │   ├── get_ESIOS_*.py          # Integración con APIs de Red Eléctrica
+│   │   ├── costes_regulados.py     # Datos de los cargos y peajes por hora
+│   │   ├── get_ESIOS_data.py       # Integración con APIs de Red Eléctrica
 │   │   ├── get_openmeteo.py        # Integración con OpenMeteo (meteorología)
-│   │   ├── get_PVGIS.py            # Integración con PVGIS (producción solar)
+│   │   ├── get_prices_forecast.py  # Obtener y visualizar predicciones de precios de energía
+│   │   ├── get_PVGIS_data.py       # Integración con PVGIS (producción solar)
+│   │   ├── get_Som_data.py         # Integración con Som API tarifas (precios indexada)
+│   │   ├── get_WIBEE_data.py       # Integración con WIBEE (producción solar, consumo y aerotermia)
 │   │   ├── sql_utilities.py        # Utilidades para BD SQLite
 │   │   ├── safe_request.py         # Wrapper seguro para requests HTTP
-│   │   ├── async_tasks.py          # Manejo de tareas asincrónicas
+│   │   ├── grafico_ESIOS_energy.py # Manejo de tareas asincrónicas
+│   │   ├── grafico_openmeteo.py    # Gráfico prediccion meteorológica a 7 dias y por horas
+│   │   ├── grafico_prices_forecast.py  # Muestra precios estimados según ESIOS demanda vs eolica+solar
+│   │   ├── grafico_prices_Som.py   # Muestra precios indexados Som de hoy y mañana
+│   │   ├── grafico_solar_today.py  # Muestra la producción solar de hoy según historicos Wibee / PVGIS y current Wibee
 │   │   ├── icons/                  # Recursos de iconos
-│   │   └── services/               # PRÓXIMO: Capa de servicios (lógica de negocio)
 │   │
 │   └── apps/                       # Aplicaciones Streamlit
 │       ├── yesterday/              # Análisis histórico
@@ -28,9 +35,7 @@ dashboard-energy/
 │       │   ├── aerotermia.py
 │       │   ├── energia_mes.py
 │       │   ├── power_weather_correlation.py
-│       │   ├── PVGIS_import.py
-│       │   ├── WIBEE_update.py
-│       │   └── SOM_update.py
+│       │   ├── mostrar_factura.py
 │       │
 │       ├── tomorrow/               # Pronóstico del día
 │       │   └── app_Tomorrow.py

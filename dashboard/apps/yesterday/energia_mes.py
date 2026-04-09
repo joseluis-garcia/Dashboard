@@ -2,7 +2,11 @@ import pandas as pd
 import sqlite3
 from datetime import datetime
 import plotly.graph_objects as go
+
+import dashboard.apps.config as TCB
+
 from dashboard.comun.sql_utilities import read_sql_ts
+
 
 def define_excedente( row):
     if row["general_Wh"] < 0:

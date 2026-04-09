@@ -7,7 +7,8 @@ Proporciona funciones para:
 - Cálculos de salida/puesta del sol
 - Normalización de timestamps
 """
-
+import os
+import base64
 from datetime import datetime, timedelta
 from typing import TypedDict, List, Tuple, Union, Optional
 import pandas as pd
@@ -318,7 +319,6 @@ def getSunDataRange(
 
     return pd.DataFrame(rows)
 
-
 def day_of_year_no_leap(date: Union[datetime, pd.Timestamp]) -> int:
     """
     Convierte una fecha a un índice de día del año (1-365, sin contar Feb 29).
@@ -350,3 +350,116 @@ def day_of_year_no_leap(date: Union[datetime, pd.Timestamp]) -> int:
         day_index -= 1
     
     return day_index
+
+def load_icon(relative_path: str) -> str:
+    """
+    Carga un icono PNG desde la carpeta de recursos como base64.
+    
+    Carga un archivo de imagen PNG desde la ruta relativa y lo codifica
+    en base64 para usar en Plotly como fuente de imagen.
+    
+    Args:
+        relative_path: Ruta relativa al archivo desde comun/
+                      (ej: "icons/sunrise-dark.png")
+        
+    Returns:
+        String con datos base64 prefijado para usar en Plotly
+        
+    Raises:
+        FileNotFoundError: Si el archivo no existe
+        
+    Example:
+        >>> icon = load_icon("icons/sunrise-dark.png")
+    """
+    # Directorio donde está este archivo (comun/)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    icon_path = os.path.join(base_dir, relative_path)
+    
+    with open(icon_path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode()
+    
+    return "data:image/png;base64," + encoded
+
+def add_sun_data(fig,lat: float, lon: float, fecha: datetime):
+
+    sun_data = getSunData(lat, lon, fecha, tz_local="Europe/Madrid")
+    
+    # Icono de salida del sol (sunrise)
+    icon_rise = load_icon("icons/sunrise-dark.png")
+    fig.add_layout_image(
+        dict(
+            source=icon_rise,
+            x=sun_data["sunrise"],
+            y=0,
+            xref="x",
+            yref="paper",
+            sizex=0.5,
+            sizey=0.5,
+            xanchor="center",
+            yanchor="middle",
+            layer="above"
+        )
+    )
+
+    # Línea vertical de mediodía solar con icono
+    icon_noon = load_icon("icons/10000_clear_small.png")
+    fig.add_vline(
+        x=sun_data["noon"],
+        line_width=2,
+        line_dash="dash",
+        line_color="green",
+        name="Mediodía"
+    )
+    fig.add_layout_image(
+        dict(
+            source=icon_noon,
+            x=sun_data["noon"],
+            y=0,
+            xref="x",
+            yref="paper",
+            sizex=0.5,
+            sizey=0.5,
+            xanchor="center",
+            yanchor="middle",
+            layer="above"
+        )
+    )
+
+    # Icono de puesta del sol (sunset)
+    icon_set = load_icon("icons/sunset-dark.png")
+    fig.add_layout_image(
+        dict(
+            source=icon_set,
+            x=sun_data["sunset"],
+            y=0,
+            xref="x",
+            yref="paper",
+            sizex=0.5,
+            sizey=0.5,
+            xanchor="center",
+            yanchor="middle",
+            layer="above"
+        )
+    )
+
+    return
+
+def local_to_utc(ts_str: str) -> str:
+    """
+    Convierte una fecha/hora local (sin tz) en Europe/Madrid a UTC (ISO 8601).
+    Espera formato 'YYYY-MM-DD HH:MM:SS' o ISO similar.
+    """
+    TZ_LOCAL = "Europe/Madrid"
+    if ts_str is None:
+        return None
+
+    # Parse naive
+    dt = datetime.fromisoformat(ts_str)
+
+    # Asignar zona horaria local
+    dt_local = dt.replace(tzinfo=ZoneInfo(TZ_LOCAL))
+
+    # Convertir a UTC
+    dt_utc = dt_local.astimezone(ZoneInfo("UTC"))
+
+    return dt_utc.isoformat(sep=" ")

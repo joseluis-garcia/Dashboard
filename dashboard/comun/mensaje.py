@@ -96,7 +96,6 @@ def show_mensaje() -> None:
     Example:
         >>> show_mensaje()
     """
-    #MENSAJE_URL = "https://next.somenergia.coop/s/MzaQLZS3HmJ4ZEB/download?path=%2F&files=Mensajes semanal.csv"
     MENSAJE_URL = "https://next.somenergia.coop/s/zsqtRiKoCSjzcfW/download?path=%2F&files=mensaje_semanal.txt"
 
     try:

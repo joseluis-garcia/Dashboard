@@ -1,20 +1,21 @@
+import sys
+
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime, timedelta
 import pytz
 
-# Añadir la raíz del repo al PYTHONPATH
-from dashboard.comun import date_conditions as dc
-from dashboard.comun.async_tasks import run_async, async_placeholder
-from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast, get_ESIOS_spot
-from dashboard.comun.get_user_location import borrar_user_location, get_user_location
-from dashboard.comun.get_prices_Som import grafico_prices_Som, get_prices_Som
-from dashboard.comun.get_prices_forecast import get_prices_forecast, grafico_prices_forecast
-from dashboard.comun.get_openmeteo import (get_meteo_7D, get_meteo_hours, grafica_meteo)
-from dashboard.comun.get_PVGIS import (get_PVGIS_data, grafico_PVGIS)
+import dashboard.apps.config as TCB
 
-Puerta_Sol = dict(lat=40.4169, lon=-3.7033)
-Casa = dict(lat=40.5661,lon=3.8998)
+from dashboard.comun import date_conditions as dc
+from dashboard.comun import sql_utilities as db
+from dashboard.comun.get_user_location import borrar_user_location, get_user_location
+
+from dashboard.comun.grafico_openmeteo import grafica_openmeteo
+from dashboard.comun.grafico_prices_Som import grafico_prices_Som
+from dashboard.comun.grafico_solar_today import grafico_solar_today
+from dashboard.comun.grafico_prices_forecast import grafico_prices_forecast
+
 
 # Función para centrar el texto de los headers
 def header_centrado(texto):
@@ -36,6 +37,11 @@ rango = {
     "start_date": start_date,
     "end_date": end_date,
 }
+conn, error = db.init_db() # Inicializar acceso a la base de datos
+if conn is None:
+    st.error(f"Error al conectar a la base de datos: {error}")
+    sys.exit(1)
+    
 dc.date_conditions_init(rango)  # Inicializar condiciones de fecha (festivos, fines de semana, hoy)
 # =========================
 #Definicion de estilos CSS para hacer el dashboard responsive y convertir los paneles a una sola columna si el ancho de pantalle es < 700px
@@ -53,7 +59,7 @@ st.markdown("""
 # TÍTULO PRINCIPAL
 # ---------------------------------------------------------
 st.set_page_config(layout="wide")
-st.title("Dashboard Meteorológico y de Precios de la Energía")
+st.title(f"Dashboard Meteorológico y de Precios de la Energía - {today.strftime('%Y-%m-%d %H:%M')}")
 # ---------------------------------------------------------
 # Obtenemos localizacion del usuario para utilizar en meteo y pvgis.
 # Si no se obtiene autorizaci
@@ -64,8 +70,8 @@ if lat is None or lon is None:
     st.warning("No se pudo obtener la localización.")
     colA, colB = st.columns(2)
     #si no hay geolocalizacion usamos la Puerta del Sol de Madrid 
-    with colA: lat = st.number_input("Latitud", value=Puerta_Sol["lat"]) 
-    with colB: lon = st.number_input("Longitud", value=Puerta_Sol["lon"])
+    with colA: lat = st.number_input("Latitud", value=TCB.PUERTA_SOL["lat"]) 
+    with colB: lon = st.number_input("Longitud", value=TCB.PUERTA_SOL["lon"])
 # ---------------------------------------------------------
 # Mostrar la localización lat, lon y ofrecer opción de borrar cookie
 #- ---------------------------------------------------------
@@ -85,7 +91,7 @@ with col1:
 with col2:
     mostrar_meteo = st.checkbox("Mostrar forecast meteorológico (Open‑Meteo)", value=True)
 with col3:
-    mostrar_PVGIS = st.checkbox("Mostrar forecast produccion fotovoltaica (PVGIS)", value=False)
+    mostrar_solar = st.checkbox("Mostrar forecast produccion fotovoltaica hoy", value=False)
 # ---------------------------------------------------------
 # PANEL PRECIOS
 # ---------------------------------------------------------
@@ -99,13 +105,11 @@ if mostrar_precios:
             st.write("""
             Los precios mostrados en este gráfico provienen del API de Som Energía que retorna los precios estimados de la tarifa indexada de la cooperativa para hoy y a partir de las 14:00 los precios para el día de mañana.
             """)
-        df_precios, error = get_prices_Som()
+        fig_precios, error = grafico_prices_Som()
         if error:
-            st.error("No se han podido obtener los precios de SOM Energia.")
             st.error(error)
         else:
-            fig_precios = grafico_prices_Som(df_precios)
-            st.plotly_chart(fig_precios, width='stretch')
+            st.plotly_chart(fig_precios, width='stretch', config={"renderer": "svg"})
 
     # Precios estimados según ESIOS
     with col2:
@@ -116,64 +120,51 @@ if mostrar_precios:
             Solo es válida la forma de la curva y sirve para detectar puntos de precios muy altos o bajos.
             Cuando la curva de precios estimados es muy negativa es probable que el precio real sea cercano a cero.
             """)
-        df_energy, error = get_ESIOS_energy_forecast(rango)
+        fig_forecast, error = grafico_prices_forecast(rango)
         if error:
-            st.error("No se han podido obtener los datos de energía de ESIOS.")
             st.error(error)
         else:
-            df_spot, error = get_ESIOS_spot(rango)
-            if error:
-                st.error("No se han podido obtener los datos de precio spot de ESIOS.")
-                st.error(error)
-            else:
-                df_final = get_prices_forecast(df_energy, df_spot)
-                fig_forecast = grafico_prices_forecast(df_final)
-                st.plotly_chart(fig_forecast, width='stretch', config={"renderer": "svg"})
+            st.plotly_chart(fig_forecast, width='stretch', config={"renderer": "svg"})
 # ---------------------------------------------------------
 # PANEL METEO
 # ---------------------------------------------------------
 if mostrar_meteo:
-    azimuth = -45
-    df_7D, error = get_meteo_7D(lat, lon, azimuth)
-    if error:
-        st.error("No se han podido obtener los datos meteorológicos de Open-Meteo.")
-        st.error(error)
-    else:
-        header_centrado("Forecast meteo by <a href='https://open-meteo.com' target='_blank'>Open-Meteo</a>")
-        col1, col2 = st.columns(2)
-        # Panel Forecast 7 dias
-        with col1:
-            st.header("📅 Forecast 7 dias")
-            fig_meteo_7D = grafica_meteo(df_7D)
-            st.plotly_chart(fig_meteo_7D, width='stretch')  
-        # Panel Próximas X horas segun slider
-        with col2:
-            col21, col22 = st.columns([3,1])
-            horas = 12
-            with col22:
-                horas = st.slider("Horizonte horario(h)", 12, 120, 24)
-            with col21:
-                st.header(f"⏱️ Próximas {horas} horas")
-            df_horas = get_meteo_hours(df_7D, horas)
-            fig_horas = grafica_meteo(df_horas)
-            st.plotly_chart(fig_horas, width='stretch')
+    header_centrado("Forecast meteo by <a href='https://open-meteo.com' target='_blank'>Open-Meteo</a>")
+    col1, col2 = st.columns(2)
+    # Panel Forecast 7 dias
+    with col1:
+        st.header("📅 Forecast 7 dias")
+        fig_meteo_7D, error = grafica_openmeteo(lat,lon,TCB.AZIMUTH)
+        if error:
+            st.error(error)
+        else:
+            st.plotly_chart(fig_meteo_7D, width='stretch', config={"renderer": "svg"})  
+    # Panel Próximas X horas segun slider
+    with col2:
+        col21, col22 = st.columns([3,1])
+        horas = 12
+        with col22:
+            horas = st.slider("Horizonte horario(h)", 12, 120, 24)
+        with col21:
+            st.header(f"⏱️ Próximas {horas} horas")
+        fig_horas, error = grafica_openmeteo(lat,lon,TCB.AZIMUTH, time_unit=horas)
+        if error:
+            st.error(error)
+        else:
+            st.plotly_chart(fig_horas, width='stretch', config={"renderer": "svg"})
 # ---------------------------------------------------------
 # Panel predicción PVGIS
 # ---------------------------------------------------------
-if mostrar_PVGIS:
-    header_centrado("Predicción producción fotovoltaica de hoy según <a href='https://joint-research-centre.ec.europa.eu/photovoltaic-geographical-information-system-pvgis_en' target='_blank'>PVGIS</a>")
+if mostrar_solar:
+    header_centrado("Predicción producción fotovoltaica de hoy")
     with st.expander("ℹ️ Ver nota"):
         st.write("""
-        A continuación se muestra la curva de potencia disponible en los paneles solares por cada kWp instalado según la plataforma PVGIS asumiendo condiciones ideales de los paneles solares en cuanto a orientación e inclinación.
+        A continuación se muestra la curva de potencia disponible en los paneles solares por cada kWp instalado según la plataforma PVGIS asumiendo condiciones ideales de los paneles solares en cuanto a orientación e inclinación, datos historicos reales de WIBEE y producción actual de WIBEE para hoy.
         Si has autorizado la geolocalización, la curva se ajustará a tu ubicación. Si no, se mostrará la predicción para la Puerta del Sol de Madrid (40.4169, -3.7038).
         """)
-# 1) Lanzar la tarea en segundo plano
-    task_key = f"pvgis_{lat}_{lon}"
-    run_async(task_key, get_PVGIS_data, lat, lon, date.today())
-# 2) Renderizar según estado
-    def render_pvgis(df):
-        #sunData = getSunData(lat, lon, date.today()) 
-        #fig = grafico_PVGIS(df, sunData) 
-        fig = grafico_PVGIS(df, lat, lon, date.today())
-        st.plotly_chart(fig, width='stretch', config={"renderer": "svg"})
-    async_placeholder( task_key, render_pvgis, loading_message="Obteniendo datos de PVGIS…" )
+
+    fig_solar, error = grafico_solar_today(conn)
+    if error:
+        st.error(error)
+    else:
+        st.plotly_chart(fig_solar, width='stretch', config={"renderer": "svg"})
