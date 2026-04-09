@@ -1,8 +1,10 @@
 import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parents[2]))  # sube hasta la raíz del repo
 
 import streamlit as st
 import pandas as pd
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 import pytz
 
 import dashboard.apps.config as TCB

@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pytz
 
-# Añadir la raíz del repo al PYTHONPATH
 from dashboard.comun import date_conditions as dc
 from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast
 from dashboard.comun.grafico_ESIOS_energy import grafico_ESIOS_energy
