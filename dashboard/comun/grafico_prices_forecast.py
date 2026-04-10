@@ -7,6 +7,7 @@ Proporciona funciones para:
 - Visualizar precios estimados vs spot
 """
 
+import sqlite3
 from typing import Optional, Tuple
 import pandas as pd
 import plotly.graph_objects as go
@@ -14,10 +15,11 @@ import streamlit as st
 
 from dashboard.comun import date_conditions as dc
 from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast, get_ESIOS_spot
+from dashboard.comun.get_Som_data import get_Som_prices_history
 from dashboard.comun.get_prices_forecast import get_prices_forecast
 
 @st.cache_data
-def grafico_prices_forecast(rango: dc.RangoFechas) -> Tuple[Optional[go.Figure], Optional[str]]:
+def grafico_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas) -> Tuple[Optional[go.Figure], Optional[str]]:
     """
     Crea gráfico interactivo de precios estimados vs spot.
     
@@ -40,6 +42,10 @@ def grafico_prices_forecast(rango: dc.RangoFechas) -> Tuple[Optional[go.Figure],
     """
 
     df_precios, error = get_prices_forecast(rango)
+    if error:
+        return None, error
+    
+    df_Som, error = get_Som_prices_history(_conn, rango)
     if error:
         return None, error
 
@@ -92,6 +98,18 @@ def grafico_prices_forecast(rango: dc.RangoFechas) -> Tuple[Optional[go.Figure],
             line=dict(color="blue", width=2)
         )
     )
+
+        # Línea de precio histórico SOM Energía
+    if df_Som is not None and not df_Som.empty:
+        fig_estimacion.add_trace(
+            go.Scatter(
+                x=df_Som.index,
+                y=df_Som["price"]*1000,  # Convertir a €/MWh
+                mode="lines",
+                name="Precio histórico SOM",
+                line=dict(color="green", width=2)
+            )
+        )
 
     # Configuración del layout
     fig_estimacion.update_layout(

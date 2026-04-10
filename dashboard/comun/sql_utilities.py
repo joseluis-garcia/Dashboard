@@ -146,11 +146,9 @@ def read_sql_ts(
     df = pd.read_sql(
         query,
         conn,
-        parse_dates=["datetime"],
+        parse_dates={"datetime": {"utc": True}},
         index_col="datetime"
     )
-    # Convertir índice a UTC
-    df.index = pd.to_datetime(df.index, utc=True)
     return df
 
 

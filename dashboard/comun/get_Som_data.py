@@ -14,7 +14,9 @@ import streamlit as st
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from dashboard.comun.date_conditions import RangoFechas
 from dashboard.comun.safe_request import safe_request_get
+from dashboard.comun.sql_utilities import read_sql_ts
 
 @st.cache_data
 def get_prices_Som_indexada() -> Tuple[Optional[pd.DataFrame], Optional[str]]:
@@ -122,5 +124,24 @@ def update_Som_history(conn: sqlite3.Connection) -> Tuple[Optional[str], Optiona
     tarifa = response.json()
     return insert_prices(conn, tarifa['data'])
 
+def get_Som_prices_history(conn: sqlite3.Connection, rango: RangoFechas) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+    """
+    Obtiene el histórico de precios de SOM Energía desde la base de datos.
+    
+    Args:
+        conn: Conexión a la base de datos SQLite
+        
+    Returns:
+        Tupla (dataframe, error) donde:
+        - dataframe: DataFrame con columnas ['datetime', 'price']
+        - error: None si es exitoso, mensaje de error si falla
+    """
+    try:
+        query = f"SELECT datetime, price FROM SOM_precio_indexada WHERE datetime >= '{rango['start_date']}' AND datetime <= '{rango['end_date']}' ORDER BY datetime"
+        df = read_sql_ts(query, conn)
+        return df, None
+    
+    except Exception as e:
+        return None, f"Error al obtener precios históricos de SOM Energía: {e}"
 
-__all__ = ["get_prices_Som_indexada", "update_Som_data"]
+__all__ = ["get_prices_Som_indexada", "update_Som_data", "get_Som_prices_history"]

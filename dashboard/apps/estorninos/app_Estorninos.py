@@ -34,7 +34,10 @@ rango = {
     "end_date": end_date,
 }
 dc.date_conditions_init(rango)  # Inicializar condiciones de fecha (festivos, fines de semana, hoy)
-
+conn, error = db.init_db() # Inicializar acceso a la base de datos
+if conn is None:
+    st.error(f"Error al conectar a la base de datos: {error}")
+    sys.exit(1)
 # Función para centrar el texto de los headers
 def header_centrado(texto):
     st.markdown(
@@ -98,7 +101,7 @@ with tab_curvas:
     st.subheader("Predicción Precios")
     show_mensaje()  
 
-    fig_forecast, error = grafico_prices_forecast(rango)
+    fig_forecast, error = grafico_prices_forecast(conn, rango)
     if error:
         st.error(f"Error al crear gráfico de precios: {error}")
     else:
