@@ -9,6 +9,7 @@ from dashboard.comun import date_conditions as dc
 from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast
 from dashboard.comun.grafico_ESIOS_energy import grafico_ESIOS_energy
 from dashboard.comun.grafico_prices_forecast import grafico_prices_forecast
+from dashboard.apps.estorninos.mostrar_agenda import mostrar_agenda
 from dashboard.apps.estorninos.historico_spot import load_historico_precios_spot
 from dashboard.apps.estorninos.historico_temperaturas import load_historico_temperaturas
 from dashboard.comun.mensaje import show_mensaje
@@ -83,7 +84,7 @@ st.markdown("""
 st.set_page_config(layout="wide")
 st.title("Visualización de variables ESIOS")
 
-tab_curvas, tab_precios, tab_temperaturas, tab_summary = st.tabs(["Curvas", "Precios", "Temperaturas", "Resumen"])
+tab_curvas, tab_agenda, tab_precios, tab_temperaturas, tab_summary = st.tabs(["Curvas", "Agenda", "Precios", "Temperaturas", "Resumen"])
 
 with tab_curvas:
     st.info(f"Rango de fechas: {rango['start_date']} → {rango['end_date']}")
@@ -101,12 +102,24 @@ with tab_curvas:
     st.subheader("Predicción Precios")
     show_mensaje()  
 
-    fig_forecast, error = grafico_prices_forecast(conn, rango)
+    fig_forecast, error = grafico_prices_forecast(conn, rango, method='rf')
     if error:
         st.error(f"Error al crear gráfico de precios: {error}")
     else:
         st.plotly_chart(fig_forecast, width='stretch', config={"renderer": "svg"})
 # 
+
+with tab_agenda:
+    st.subheader("Agenda")
+    st.info(f"Estamos en {dc.get_estacion(today)}")
+    opcion = st.selectbox("Criterio", ["Renovable", "Precio"])
+
+    fig_agenda, error = mostrar_agenda(conn, opcion)
+    if error:
+        st.error(error)
+    else:
+        st.plotly_chart(fig_agenda, width='stretch', key="agenda")
+    
 with tab_precios:
     fig_precios, ticks_mes = load_historico_precios_spot(conn, True, True)
     st.subheader("Mapa de precios spot histórico")

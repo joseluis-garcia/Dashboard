@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Tuple, Optional
 import plotly.graph_objects as go
 import pandas as pd
@@ -6,29 +7,48 @@ import pytz
 import dashboard.apps.config as TCB
 
 
+from dashboard.comun.get_energy_forecast import predict_future
 from dashboard.comun.date_conditions import add_sun_data
 from dashboard.comun.get_PVGIS_data import get_PVGIS_data
 from dashboard.comun.get_WIBEE_data import get_WIBEE_today, get_WIBEE_today_history
+from dashboard.comun.grafico_openmeteo import grafica_openmeteo
 
-def grafico_solar_today(conn) -> Tuple[Optional[go.Figure], Optional[str]]:
+def grafico_solar_today(conn, method="rf") -> Tuple[Optional[go.Figure], Optional[str]]:
     df1, error = get_WIBEE_today()
     if error:
         return None, error
     
-    df1.index = df1.index.tz_convert("Europe/Madrid")
+    df1.index = df1.index.tz_localize("UTC").tz_convert("Europe/Madrid")
     local_tz = pytz.timezone("Europe/Madrid")
     df1["hour"] = df1.index.hour + df1.index.minute / 60.0
     
     df2, error = get_WIBEE_today_history(conn)
     if error:
-        return None, f"Error al obtener datos históricos de WIBEE: {error}"
+        return None, f"grafico_solar_today: {error}"
 
     df3, error = get_PVGIS_data(conn)
     if error:
         return None, f"Error al obtener datos de PVGIS: {error}"
 
+    #Obtenemos el pronostico de hoy para obtener forecast de producción solar
+    hoy = date.today()
+    local = grafica_openmeteo.df_cache.copy()
+
+    df_hoy = local[local.index.date == hoy]
+
+    df_hoy['hora']= df_hoy.index.hour + df_hoy.index.minute / 60.0
+    energy_forecast, error = predict_future(conn, df_hoy, method=method)
+
     # Graficar
     fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=energy_forecast.index,
+        y=energy_forecast["predicted_production"],
+        name="Previsto (modelo)",
+        mode="lines",
+        line=dict(dash="dot")
+    ))
 
     fig.add_trace(go.Scatter(
         x=df1['hour'],

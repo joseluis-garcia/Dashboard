@@ -181,7 +181,7 @@ def get_WIBEE_data(rango: RangoFechas, time_unit: Optional[str] = "hours")-> Tup
         result['extra'] = 'AEROTERMIA'
         result['power_Wp'] = TCB.CURRENT_PEAK_POWER
 
-        result["datetime"] = pd.to_datetime(result["datetime"], utc=True)
+        result["datetime"] = pd.to_datetime(result["datetime"], utc=True).dt.tz_localize(None)
         result = result.set_index("datetime")
         return result, None
     except Exception as e:
@@ -209,7 +209,7 @@ def update_WIBEE_history(conn: sqlite3.Connection) -> Tuple[Optional[pd.DataFram
         if error:
             return None, error
         
-        result.to_sql('WIBEE', conn, if_exists='append', index=False )
+        result.to_sql('WIBEE', conn, if_exists='append', index=True, index_label='datetime' )
         return f"Insertadas {len(result)} en WIBEE", None
 
     except Exception as e:
@@ -243,20 +243,19 @@ def get_WIBEE_today_history(conn: sqlite3.Connection) -> Tuple[Optional[pd.DataF
 
     local_tz = pytz.timezone("Europe/Madrid")
     today = datetime.now(local_tz).strftime("%m-%d")
-    #print(f"Obteniendo datos históricos de WIBEE para hoy: {today}")
-    try:
-        query = "SELECT datetime, solar_Wh from WIBEE order by datetime"
-        df = read_sql_ts(query, conn)
-        # Convertir UTC a hora local
 
-        df.index = df.index.tz_convert("Europe/Madrid")
-        mask = df.index.strftime("%m-%d") == today
-        df = df[mask].groupby(df.index[mask].hour).agg({"solar_Wh": "mean"})
-
-        #print(f"Datos históricos de WIBEE para hoy obtenidos: {len(df)} registros\n")
-        return df, None
+    query = "SELECT datetime, solar_Wh from WIBEE order by datetime"
+    df, error = read_sql_ts(query, conn)
+    if error:
+        return None, f"get_WIBEE_today_history: {error}"
     
-    except Exception as e:
-        return None, f"Error al obtener datos históricos de WIBEE: {str(e)}"
+    # Convertir UTC a hora local
+    df.index = df.index.tz_convert("Europe/Madrid")
+
+    # Nos quedamos con el promedio de todos los mismos dias de los años cargados
+    mask = df.index.strftime("%m-%d") == today
+    df = df[mask].groupby(df.index[mask].hour).agg({"solar_Wh": "mean"})
+
+    return df, None
     
 __all__ = ["update_WIBEE_history", "get_WIBEE_today", "get_WIBEE_today_history"]

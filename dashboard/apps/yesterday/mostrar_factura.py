@@ -2,6 +2,7 @@ import pandas as pd
 import calendar
 
 from datetime import datetime, date
+import pytz
 
 from dashboard.comun.date_conditions import periodo_2_0TD
 from dashboard.comun.sql_utilities import read_sql_ts
@@ -33,20 +34,37 @@ def compute_values(x):
 
     return pd.Series([consumo, excedente])  # Return as Series
 
-def mostrar_factura(conn, month, year):
+def mostrar_factura(conn, month, year, source):
 
     mes_factura = f"{year}-{month:02d}"
     _ , days_in_month = calendar.monthrange(year, month)
+
+    tz = pytz.timezone("Europe/Madrid")
+
+    # Primer instante del mes en hora local → UTC
+    start_local = tz.localize(datetime(year, month, 1))
+    # Primer instante del mes siguiente → UTC
+    if month == 12:
+        end_local = tz.localize(datetime(year + 1, 1, 1))
+    else:
+        end_local = tz.localize(datetime(year, month + 1, 1))
+    print("LOCAL",start_local, end_local)
+    start_utc = start_local.astimezone(pytz.utc).strftime("%Y-%m-%d %H:%M:%S")
+    end_utc   = end_local.astimezone(pytz.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+    print("UTC", start_utc,end_utc)
     try:
         if (source == 'DATADIS'):
-            query = f"SELECT datetime, consumption_Wh as consumo, surplus_Wh as excedente from DATADIS_v where strftime('%Y-%m', datetime) = '{mes_factura}';"
-            energy = read_sql_ts(query, conn)
+            query = f"SELECT datetime, consumption_Wh as consumo, surplus_Wh as excedente from DATADIS_v where datetime >= ? and datetime < ?"
+            energy = pd.read_sql(query, conn, params=(start_utc, end_utc), index_col="datetime", parse_dates="datetime")
+
         else:
-            query = f"SELECT datetime, general_Wh from WIBEE where strftime('%Y-%m', datetime) = '{mes_factura}';"
-            energy = read_sql_ts(query, conn)
+            query = "SELECT datetime, general_Wh / 1000. as general_Wh from WIBEE where datetime >= ? and datetime < ?"
+            energy = pd.read_sql(query, conn, params=(start_utc, end_utc), index_col="datetime", parse_dates="datetime")
             energy[["consumo", "excedente"]] = energy["general_Wh"].apply(compute_values)
 
-        energy['tarifa'] = energy.index.map(lambda x:periodo_2_0TD(x))
+        energy["local_time"] = energy.index.tz_localize("UTC").tz_convert(tz)
+        energy['tarifa'] = energy["local_time"].apply(periodo_2_0TD)
         if energy.empty:
             raise ValueError("The Source DataFrame is empty!")
 
@@ -56,16 +74,18 @@ def mostrar_factura(conn, month, year):
         else:
             tabla = "SOM_precio_indexada"
 
-        query = f"SELECT * from {tabla} where strftime('%Y-%m', datetime) = '{mes_factura}';"
-        prices_Som = read_sql_ts(query, conn)
+        query = f"SELECT * from {tabla} where datetime >= ? and datetime < ?"
+        prices_Som =  pd.read_sql(query, conn, params=(start_utc, end_utc), index_col="datetime", parse_dates="datetime")
         if prices_Som.empty:
             raise ValueError("The Som Prices DataFrame is empty!")
         
         col = '"Mercado SPOT"'
-        query = f"SELECT datetime, {col} from  ESIOS_data where strftime('%Y-%m', datetime) = '{mes_factura}';"
-        prices_SPOT = read_sql_ts(query, conn)
+        query = f"SELECT datetime, {col} from  ESIOS_data where datetime >= ? and datetime < ?"
+        prices_SPOT = pd.read_sql(query, conn, params=(start_utc, end_utc), index_col="datetime", parse_dates='datetime')
+
         if prices_SPOT.empty:
             raise ValueError("The SPOT Prices DataFrame is empty!")
+        prices_SPOT['Mercado SPOT'] = prices_SPOT['Mercado SPOT'] / 1000
         print("Energy:\n", energy.head())
         print("SOM Prices:\n", prices_Som.head())
         print("SPOT Prices:\n", prices_SPOT.head())
@@ -73,7 +93,8 @@ def mostrar_factura(conn, month, year):
         prices_20TD = {'P1':0.229,'P2':0.153,'P3':0.125, 'Excedente':0.03}
         df_cost = energy.join([prices_Som, prices_SPOT], how='inner')
         
-        print("Joined DataFrame:\n", df_cost.head())
+        print("Joined DataFrame:\n", df_cost.head(24))
+        
         def calcular_coste(row):
             consumo = row['consumo']
             excedente = row['excedente']
@@ -82,13 +103,13 @@ def mostrar_factura(conn, month, year):
                 return pd.Series({
                     'cargo': 0,
                     'cargo_20TD': 0,
-                    'compensacion': excedente * row['Mercado SPOT'] / 1000,
-                    'compensacion_20TD': excedente * prices_20TD['Excedente'] / 1000
+                    'compensacion': excedente * row['Mercado SPOT'],
+                    'compensacion_20TD': excedente * prices_20TD['Excedente']
                 })
             else:
                 return pd.Series({
-                    'cargo': consumo * precio_cargo / 1000,
-                    'cargo_20TD': consumo * prices_20TD[row['tarifa']] / 1000,
+                    'cargo': consumo * precio_cargo,
+                    'cargo_20TD': consumo * prices_20TD[row['tarifa']],
                     'compensacion': 0,
                     'compensacion_20TD': 0
                 })
@@ -101,21 +122,21 @@ def mostrar_factura(conn, month, year):
 
         # Show the result
         #df_cost["costDay"] = df_cost.drop(columns="datetime").sum(axis=1)
-        print("COST:\n", df_cost)
+        print("COST:\n", df_cost[df_cost['excedente']>0])
 
         # Group by month and sum values
         # df_monthly = df_cost.groupby(df_cost['datetime'].dt.to_period('M'))['costDay'].sum().reset_index()
         # df_monthly['datetime'] = df_monthly['datetime'].astype(str)
         df_monthly = df_cost
 
-        print("Monthly:\n", df_monthly)
+        print("Monthly:\n", df_monthly[df_monthly['excedente']>0])
         euro_coste = df_monthly['cargo'].sum()
         euro_coste_20TD = df_monthly['cargo_20TD'].sum()
         euro_excedente = df_monthly['compensacion'].sum()
         euro_excedente_20TD = df_monthly['compensacion_20TD'].sum()
         
-        total_energy = energy['consumo'].sum() / 1000
-        total_excedente = energy['excedente'].sum() / 1000
+        total_energy = energy['consumo'].sum()
+        total_excedente = energy['excedente'].sum()
 
         bono_social = cteBonoSocial * days_in_month
 

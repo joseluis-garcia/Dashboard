@@ -112,7 +112,7 @@ def get_tables_info(
 def read_sql_ts(
     query: str, 
     conn: sqlite3.Connection
-) -> pd.DataFrame:
+)  -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """
     Lee datos de SQL y los retorna con índice datetime en UTC.
     
@@ -129,6 +129,7 @@ def read_sql_ts(
         
     Returns:
         DataFrame con índice datetime en UTC
+        error en caso de error
         
     Raises:
         pd.errors.DatabaseError: Si hay error en la consulta SQL
@@ -143,13 +144,16 @@ def read_sql_ts(
         >>> df.index.tz
         datetime.timezone.utc
     """
-    df = pd.read_sql(
-        query,
-        conn,
-        parse_dates={"datetime": {"utc": True}},
-        index_col="datetime"
-    )
-    return df
+    try:
+        df = pd.read_sql(
+            query,
+            conn,
+            index_col="datetime"
+        )
+        df.index = pd.to_datetime(df.index, utc=True)
+        return df, None
+    except Exception as err:
+        return None, f"read_sql_ts: {err}"
 
 
 __all__ = ["init_db", "get_tables_info", "read_sql_ts"]

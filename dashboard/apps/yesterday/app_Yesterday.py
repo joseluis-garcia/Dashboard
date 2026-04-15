@@ -3,6 +3,8 @@ import streamlit as st
 import sys
 from datetime import datetime
 
+from dashboard.apps.yesterday.analysis_energy_spot_correlation import grafico_prediccion_energia
+from dashboard.apps.yesterday.analysis_power_weather_correlation import grafico_prediccion_simple
 import dashboard.comun.sql_utilities as db
 
 
@@ -60,7 +62,7 @@ st.markdown("""
 st.set_page_config(layout="wide")
 st.sidebar.title("Menú")
 
-pagina = st.sidebar.radio("Ir a:", ["Aerotermia", "Producción mes", "Producción dia", "Correlacion Solar", "Factura", "Ajustes"])
+pagina = st.sidebar.radio("Ir a:", ["Aerotermia", "Producción mes", "Producción dia", "Correlacion Solar", "Correlacion Energia Spot", "Factura", "Ajustes"])
 if pagina == "Aerotermia":
     with st.container():
         st.header("Consumo aerotermia vs temperaturas")
@@ -112,8 +114,15 @@ elif pagina == "Producción dia":
         st.plotly_chart(grafico_solar, width='stretch')
 
 elif pagina == "Correlacion Solar":
-    df = power_weather_correlation( conn)
-    fig = grafico_prediccion(df)
+    # df = power_weather_correlation( conn)
+    # fig = grafico_prediccion(df)
+    fig = grafico_prediccion_simple(conn)
+    st.plotly_chart(fig, width='stretch')
+
+elif pagina == "Correlacion Energia Spot":
+    # df = power_weather_correlation( conn)
+    # fig = grafico_prediccion(df)
+    fig = grafico_prediccion_energia(conn)
     st.plotly_chart(fig, width='stretch')
 
 elif pagina == "Factura":
@@ -131,7 +140,7 @@ elif pagina == "Factura":
         ejecutar = st.button("Cargar datos")
 
     if ejecutar:
-        texto = mostrar_factura(conn, month, year)
+        texto = mostrar_factura(conn, month, year, "WIBEE")
         st.write(texto)
 
 elif pagina == "Ajustes":
@@ -163,30 +172,32 @@ elif pagina == "Ajustes":
             # Botón único por fila
             if col4.button("▶", key=f"btn_{idx}"):
                 # Acción dependiente del concepto
-                st.success(f"Ejecutando acción para concepto {row['Tabla']} (fila {idx})")
-                
+                placeholder = st.empty()
+                placeholder.success(f"Ejecutando acción para concepto {row['Tabla']} (fila {idx})")
+                if idx == 1:
+                    st.success("Nada que actualizar")
                 if idx == 2:
                     resultado, error = update_Som_history(conn)
                     if error:
-                        st.error(error)
+                        placeholder.error(error)
                     else:
-                        st.success(resultado)
+                        placeholder.success(resultado)
                 if idx == 3:
                     resultado, error = update_WIBEE_history(conn)
                     if error:
-                        st.error(error)
+                        placeholder.error(error)
                     else:
-                        st.success(resultado)
+                        placeholder.success(resultado)
                 if idx == 4:
                     resultado, error = update_openmeteo_history(conn)
                     if error:
-                        st.error(error)
+                        placeholder.error(error)
                     else:
-                        st.success(resultado)
+                        placeholder.success(resultado)
                 if idx == 5:
                     resultado, error = update_ESIOS_history(conn)
                     if error:
-                        st.error(error)
+                        placeholder.error(error)
                     else:
-                        st.success(resultado)
+                        placeholder.success(resultado)
 

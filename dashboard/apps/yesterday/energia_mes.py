@@ -18,7 +18,7 @@ def get_energia_mes( conn: sqlite3.Connection) -> pd.DataFrame:
 
     #Previous data recorded until
     query = "SELECT datetime, general_Wh,solar_Wh, power_Wp from WIBEE order by datetime"
-    swibe = read_sql_ts(query, conn)
+    swibe, error = read_sql_ts(query, conn)
     # Normalizar por potencia instalada
     swibe['solar_Wh'] = swibe['solar_Wh'] / swibe['power_Wp'] * 6.6
     swibe[["excedente_Wh", "consumo_Wh", "autoconsumo_Wh"]] = swibe.apply(define_excedente, axis=1, result_type="expand")

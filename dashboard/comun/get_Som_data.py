@@ -136,12 +136,10 @@ def get_Som_prices_history(conn: sqlite3.Connection, rango: RangoFechas) -> Tupl
         - dataframe: DataFrame con columnas ['datetime', 'price']
         - error: None si es exitoso, mensaje de error si falla
     """
-    try:
-        query = f"SELECT datetime, price FROM SOM_precio_indexada WHERE datetime >= '{rango['start_date']}' AND datetime <= '{rango['end_date']}' ORDER BY datetime"
-        df = read_sql_ts(query, conn)
-        return df, None
-    
-    except Exception as e:
-        return None, f"Error al obtener precios históricos de SOM Energía: {e}"
+
+    query = f"SELECT datetime, price FROM SOM_precio_indexada WHERE datetime >= '{rango['start_date']}' AND datetime <= '{rango['end_date']}' ORDER BY datetime"
+    df, error = read_sql_ts(query, conn)
+    return df, error
+
 
 __all__ = ["get_prices_Som_indexada", "update_Som_data", "get_Som_prices_history"]

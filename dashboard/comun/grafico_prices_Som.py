@@ -1,10 +1,5 @@
 """
-Módulo para obtener y visualizar precios de SOM Energía.
-
-Proporciona funciones para:
-- Obtener precios de hoy y mañana de SOM Energía
-- Crear gráficos interactivos de precios por hora
-- Mostrar comparativa de precios hoy vs mañana
+Módulo para visualizar precios de SOM Energía.
 """
 
 from typing import Tuple, Optional
@@ -12,40 +7,58 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from dashboard.comun.get_ESIOS_data import get_ESIOS_spot
 from dashboard.comun.get_Som_data import get_prices_Som_indexada
 
 @st.cache_data
 def grafico_prices_Som() -> Tuple[go.Figure, Optional[str]]:
 
     """
-    Crea gráfico interactivo de precios de SOM Energía.
+    Crea gráfico interactivo de precios indexados de SOM Energía.
     
     Muestra:
     - Barras de precios de hoy (coloreadas por rango)
-    - Líneas verticales de precios de mañana
+    - Líneas verticales de precios de mañana (cuando este disponibles)
     - Puntos marcadores para mañana
+    - Puntos marcadores para las horas que hoy hay precios negativos
     
     Colores:
     - Verde: < 0.1 €/kWh (muy barato)
     - Amarillo: < 0.2 €/kWh (barato)
     - Rojo: >= 0.2 €/kWh (caro)
     - Gris: valores faltantes (NaN)
-    
-    Args:
-        df: DataFrame con columnas ['hora', 'hoy', 'mañana']
-        
+          
     Returns:
-        Figura Plotly (go.Figure)
+        Tupla (dataframe, error) donde:
+        - Figura Plotly (go.Figure): None si ha fallado
+        - error: None si es exitoso, mensaje de error si falla
         
     Example:
-        >>> df, _ = get_prices_Som()
-        >>> fig = grafico_prices_Som(df)
-        >>> fig.show()
+        >>> df, error = get_prices_Som()
+        >>> if error:
+        >>>     mensaje (error)
+        >>> else:
+        >>>     fig = grafico_prices_Som(df)
+        >>>     fig.show()
     """
+    # Obtenemos los precios de la web de Som Energia
     df, error = get_prices_Som_indexada()
     if error:
         return None, f"No se han podido obtener los precios de SOM Energía: {error}"
     
+    # Obtener precios de ESIOS para detectar precios excedentes negativos
+    df_omie, error_omie = get_ESIOS_spot(None)
+    if error_omie:
+        return None, f"No se han podido obtener los precios de ESIOS: {error_omie}"
+    
+    # Convertimos el indice a hora local
+    local = df_omie.tz_convert("Europe/Madrid")
+    # Asegurar que las horas estén en formato numérico
+    df_omie["hora_num"] = local.index.hour + local.index.minute / 60
+    # Nos quedamos con las horas de precios negativos
+    df_omie=df_omie[df_omie["Mercado SPOT"]<0]
+    
+
     # Mapear colores según precio para hoy
     colors = [
         "#CCCCCC" if pd.isna(v) else
@@ -59,6 +72,20 @@ def grafico_prices_Som() -> Tuple[go.Figure, Optional[str]]:
     df["hora"] = df["hora"].apply(lambda h: f"{int(h):02d}")
     
     fig = go.Figure()
+
+    # Marcas de precios negativos de Omie
+    fig.add_trace(
+        go.Scatter(
+            x=df_omie["hora_num"]+0.4,
+            y=df_omie["Mercado SPOT"]/1000,
+            mode="markers",
+            marker=dict(
+                size=8,
+                color= "#B83170",
+            ),
+            name="Precios negativos ESIOS"
+        )
+    )
 
     # Convertir horas a números para eje X
     df["hora_num"] = df["hora"].apply(lambda h: int(h[:2]))
@@ -79,7 +106,6 @@ def grafico_prices_Som() -> Tuple[go.Figure, Optional[str]]:
     # Líneas verticales de precios de mañana
     x_lines = []
     y_lines = []
-
     for x, y in zip(df["hora_num"], df["mañana"]):
         x_lines += [x + 0.4, x + 0.4, None]
         y_lines += [0, y, None]

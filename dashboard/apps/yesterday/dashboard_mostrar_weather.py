@@ -83,7 +83,6 @@ def mostrar_weather( frame, header):
         df['solar_Wh'] = df['solar_Wh'] / df['power_Wp'] * 6.6
         df_final = df[df["solar_Wh"] > 5] #filter SWIBE error
         #df_final = df_final[df_final['date'].dt.strftime("%Y-%m-%d") == '2024-09-30']
-        print(df_final)
 
         print(f"Numero de elementos considerados: {len(df_final)} desde {df_final['date'].min()} hasta {df_final['date'].max()}")
 

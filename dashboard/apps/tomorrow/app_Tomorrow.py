@@ -122,7 +122,7 @@ if mostrar_precios:
             Solo es válida la forma de la curva y sirve para detectar puntos de precios muy altos o bajos.
             Cuando la curva de precios estimados es muy negativa es probable que el precio real sea cercano a cero.
             """)
-        fig_forecast, error = grafico_prices_forecast(rango)
+        fig_forecast, error = grafico_prices_forecast(conn, rango)
         if error:
             st.error(error)
         else:
@@ -165,7 +165,7 @@ if mostrar_solar:
         Si has autorizado la geolocalización, la curva se ajustará a tu ubicación. Si no, se mostrará la predicción para la Puerta del Sol de Madrid (40.4169, -3.7038).
         """)
 
-    fig_solar, error = grafico_solar_today(conn)
+    fig_solar, error = grafico_solar_today(conn, method="lr")
     if error:
         st.error(error)
     else:

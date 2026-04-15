@@ -12,7 +12,6 @@ import streamlit as st
 
 from dashboard.comun.get_openmeteo import get_meteo_7D, get_meteo_hours
 
-@st.cache_data
 def grafica_openmeteo( 
     lat: float,
     lon: float,
@@ -20,7 +19,7 @@ def grafica_openmeteo(
     time_unit: Optional[int] = None
 ) -> Tuple[Optional[go.Figure], Optional[str]]:
     """
-    Crea gráfico interactivo de datos meteorológicos.
+    Crea gráfico interactivo de datos meteorológicos. La primera vez que se llama cachea los datos de 7 dias para la ubicación dada y los reutiliza en llamadas posteriores con los mismos parámetros de latitud, longitud y azimut. Si se especifica time_unit, filtra los datos para mostrar solo las próximas horas indicadas. Si cambian los parámetros de latitud, longitud o azimut se recarga la previsión de 7 días para la nueva ubicación y orientación.
     
     Genera un gráfico con:
     - Barras de nubosidad (eje Y derecho, %)
@@ -35,16 +34,21 @@ def grafica_openmeteo(
         
     Returns:
         Figura Plotly (go.Figure)
+        error si lo hubiera
         
     Example:
-        >>> fig = grafica_meteo() grafica con datos de 7 días
-        >>> fig = grafica_meteo(24) grafica con datos de las próximas 24 horas
+        >>> fig, error = grafica_meteo() grafica con datos de 7 días
+        >>> fig, error = grafica_meteo(24) grafica con datos de las próximas 24 horas
         >>> fig.show()
     """
-    if not hasattr(grafica_openmeteo, "df_cache"):
+    cache_key = {lat,lon,azimuth}
+    if (not hasattr(grafica_openmeteo, "df_cache") or 
+        grafica_openmeteo.df_cache is None or 
+        grafica_openmeteo.cache_key != cache_key):
         grafica_openmeteo.df_cache, error = get_meteo_7D(lat, lon, azimuth)
         if error:
-            return None, error
+            return None, f"grafica_openmeteo: {error}"
+        grafica_openmeteo.cache_key = cache_key
 
     df = grafica_openmeteo.df_cache
     
@@ -61,7 +65,7 @@ def grafica_openmeteo(
     # Barras de nubosidad
     fig.add_trace(
         go.Bar(
-            x=df["time"],
+            x=df.index,
             y=df["cloud_cover"],
             width=60 * 60 * 1000,  # 1 hora en ms
             name="Nubosidad (%)",
@@ -73,8 +77,8 @@ def grafica_openmeteo(
     # Línea de temperatura
     fig.add_trace(
         go.Scatter(
-            x=df["time"],
-            y=df["temperature_2m"],
+            x=df.index,
+            y=df["temperature"],
             mode="lines",
             name="Temperatura (°C)",
             line=dict(color="tomato", width=2, shape="spline", smoothing=1.3)
@@ -87,7 +91,7 @@ def grafica_openmeteo(
     # Barras de probabilidad de lluvia
     fig.add_trace(
         go.Bar(
-            x=df["time"],
+            x=df.index,
             y=df["precipitation_probability"],
             name="Prob. lluvia (%)",
             marker_color="#00a000",

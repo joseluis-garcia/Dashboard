@@ -13,7 +13,7 @@ def cleanSolar( row):
 def get_aerotermia_data( conn):
     #Query historical energy consumption data from WIBEE table
     query = "SELECT datetime, solar_Wh, extra_Wh from WIBEE where extra_Wh > 15 and extra='{0}' order by datetime".format('AEROTERMIA')
-    swibe = read_sql_ts(query, conn)
+    swibe, error = read_sql_ts(query, conn)
     swibe['energy'] = swibe.apply( cleanSolar, axis = 1)
     swibe['energy'] = swibe["energy"] / 1000 # Convertir a kWh
     swibe = swibe[['energy']]
@@ -23,7 +23,7 @@ def get_aerotermia_data( conn):
 
     # Query prices data form precios_indexada
     query = "SELECT * from SOM_precio_indexada order by datetime"
-    prices = read_sql_ts(query, conn)
+    prices, error = read_sql_ts(query, conn)
     prices['price'] = pd.to_numeric(prices['price'], errors='coerce')
     prices['price'] = prices['price'] * 1.21
     pricesMin = prices.index.min()
@@ -43,7 +43,7 @@ def get_aerotermia_data( conn):
 
     #Get weather data from VXSING
     query = "SELECT datetime, temperature as temp from METEO where datetime >= '{0}' and datetime <= '{1}' order by datetime".format(dateMin, dateMax)
-    df_temp = read_sql_ts(query, conn)
+    df_temp, error = read_sql_ts(query, conn)
 
     #Merge all data in one final dataframe
     df_final = df_cost.join(df_temp)

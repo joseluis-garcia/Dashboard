@@ -13,7 +13,7 @@ from dbm import sqlite3
 from typing import Tuple, Optional, Dict, Any
 import pandas as pd
 import streamlit as st
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from dashboard.comun.safe_request import safe_request_get
 from dashboard.comun.date_conditions import RangoFechas
@@ -135,7 +135,8 @@ def get_ESIOS_energy_forecast(rango: RangoFechas) -> Tuple[Optional[pd.DataFrame
         
     Returns:
         Tupla (dataframe, error) donde:
-        - dataframe: DataFrame con columnas ['eolica', 'solar', 'demanda', 'renovable']
+        - dataframe: DataFrame con columnas ["Previsión eólica", "Solar fotovoltaica", "Previsión semanal", 'Renovable']
+         con Renovable = "Previsión eólica" + "Solar fotovoltaica"
         - error: None si es exitoso, mensaje de error si falla
         
     Raises:
@@ -153,7 +154,7 @@ def get_ESIOS_energy_forecast(rango: RangoFechas) -> Tuple[Optional[pd.DataFrame
     df_energy, error = fetch_multiple_indicators([IND_EO, IND_FV, IND_DEM], rango)
     if error:
         return None, error
-    df_energy["renovable"] = df_energy["Previsión eólica"] + df_energy["Solar fotovoltaica"]
+    df_energy["Renovable"] = df_energy["Previsión eólica"] + df_energy["Solar fotovoltaica"]
     return df_energy, None
 
 def get_ESIOS_energy_history( rango: RangoFechas) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
@@ -213,6 +214,14 @@ def get_ESIOS_spot(rango: RangoFechas) -> Tuple[Optional[pd.DataFrame], Optional
         ...     print(f"Precio promedio: {df['Mercado SPOT'].mean():.2f} €/MWh")
     """
     spot, error = get_indicator(IND_SPOT, rango, 'h')
+    
+    if rango == None:
+        hoy = date.today()
+        df = spot.copy()
+        df.index = df.index.tz_localize("UTC")
+        df_hoy = df[df.index.tz_convert("Europe/Madrid").normalize() == pd.Timestamp(hoy, tz="Europe/Madrid")]
+        return df_hoy, None
+
     if error:
         return None, error
 
@@ -228,9 +237,9 @@ def update_ESIOS_history(conn: sqlite3.Connection) -> Tuple[Optional[str], Optio
         strStartDate = startDate.strftime("%Y-%m-%dT%H:%M:%SZ")
 
         # Get the current UTC time
-        endDate = datetime.now(timezone.utc) + timedelta(hours=-1)
+        endDate = datetime.now(timezone.utc) + timedelta(hours=-2)
         # Teniendo probelmas de carga limitamos a 30 dias
-        endDate = startDate+ timedelta(days=15)
+        #endDate = startDate+ timedelta(days=15)
         # Convert the datetime object to a string
         strEndDate = endDate.strftime("%Y-%m-%dT%H:%M:%SZ")
         
@@ -253,9 +262,44 @@ def update_ESIOS_history(conn: sqlite3.Connection) -> Tuple[Optional[str], Optio
 
         print(f"Insertando filas {df_final.head()} en la base de datos")
         df_final.to_sql('ESIOS_data', conn, if_exists='append', index=False )
+        return f"Insertadas {len(df_final)} filas en ESIOS_data desde {df_final.index.min()} hasta {df_final.index.max()}", None
 
-        return f"Insertadas {len(df_final)} en ESIOS_data", None
     except Exception as e:
         return None, f"Error al insertar datos en la tabla ESIOS_data: {e}"
 
-__all__ = ["get_ESIOS_energy_forecast", "get_ESIOS_spot", "get_ESIOS_energy_history", "update_ESIOS_history"]
+def get_ESIOS_data_from_measurements(conn: sqlite3.Connection, rango: Optional[RangoFechas] = None) -> pd.DataFrame:
+    """
+    Carga datos historicos de ESIOS para entrenar modelos desde SQL.
+    Debe devolver columnas: ['datetime', 'Eólica', 'Solar fotovoltaica', 'Mercado SPOT', 'Demanda real']
+        
+    Args:
+        rango: Diccionario con 'start_date' y 'end_date'
+        
+    Returns:
+        Tupla (dataframe, error) donde:
+         
+        - dataframe: Index(['datetime', 'Eólica', 'Solar fotovoltaica', 'Mercado SPOT', 'Demanda real']
+        - error: None si es exitoso, mensaje de error si falla
+    """
+    try:
+        if rango is None:
+            query = 'select datetime, Eólica, "Solar Fotovoltaica", "Mercado SPOT", "Demanda real" from ESIOS_data order by datetime'
+        else:
+            query = f'select datetime, Eólica, "Solar Fotovoltaica", "Mercado SPOT", "Demanda real" from ESIOS_data where datetime >= {rango["start_date"]} and datetime <= {rango["end_date"]} order by datetime'
+
+        df = pd.read_sql(query, conn, parse_dates = ["datetime"])
+
+
+        print("Filas con problemas:",df[df.isna().any(axis=1)])
+        df = df.dropna(subset=['Eólica', 'Solar fotovoltaica', 'Demanda real'])
+        return df, None
+    
+    except Exception as e:
+        return None, f"Error al cargar datos de ESIOS para previsión precios: {e}"
+    
+__all__ = [
+    "get_ESIOS_energy_forecast", 
+    "get_ESIOS_spot",
+    "get_ESIOS_energy_history", 
+    "update_ESIOS_history", 
+    "get_ESIOS_data_from_measurements"]

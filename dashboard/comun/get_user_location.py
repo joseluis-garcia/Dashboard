@@ -36,7 +36,7 @@ def get_user_location() -> Tuple[Optional[float], Optional[float]]:
         js_expressions="document.cookie",
         key="read_cookie"
     )
-    
+    print("Cookie obtenida:", cookie_value)
     if cookie_value and "user_location" in cookie_value:
         # Extraer lat/lon de la cookie
         try:

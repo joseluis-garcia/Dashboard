@@ -48,7 +48,7 @@ hourly_data = {"date": pd.date_range(
 	inclusive = "left"
 )}
 
-hourly_data["temperature_2m"] = hourly_temperature_2m
+hourly_data["temperature"] = hourly_temperature_2m
 hourly_data["cloud_cover"] = hourly_cloud_cover
 hourly_data["precipitation"] = hourly_precipitation
 hourly_data["direct_radiation"] = hourly_direct_radiation

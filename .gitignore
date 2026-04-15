@@ -145,3 +145,4 @@ Thumbs.db
 # Project specific
 *.db-journal
 data/*.db-journal
+*.pkl

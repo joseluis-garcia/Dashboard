@@ -101,7 +101,6 @@ def predict_future(model, df_future_weather):
     radiation, cloud_cover, temperature
     """
     df_future_weather = df_future_weather.copy()
-    print(df_future_weather.head())
     df_future_weather["predicted_production"] = model.predict(df_future_weather[["temperature", "cloud_cover","radiation"]])
     return df_future_weather
 
@@ -128,7 +127,8 @@ def power_weather_correlation( conn):
         "temperature_2m":"temperature",
         "direct_radiation":"radiation",
     })
-    df_weather_forecast["time_local"] = (df_weather_forecast["time"].dt.tz_convert("Europe/Madrid"))
+    print("Datos meteorológicos para predicción futura:\n", df_weather_forecast.head())
+    df_weather_forecast["time_local"] = (df_weather_forecast["date"].dt.tz_convert("Europe/Madrid"))
     df_weather_forecast = df_weather_forecast.drop(columns=['precipitation_probability','weather_code','date','time'])
 
     df_future = predict_future(model, df_weather_forecast)

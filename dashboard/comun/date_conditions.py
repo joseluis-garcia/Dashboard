@@ -9,7 +9,7 @@ Proporciona funciones para:
 """
 import os
 import base64
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import TypedDict, List, Tuple, Union, Optional
 import pandas as pd
 import pytz
@@ -18,6 +18,7 @@ import streamlit as st
 import ephem
 from zoneinfo import ZoneInfo
 import plotly.graph_objects as go
+
 
 
 class RangoFechas(TypedDict):
@@ -213,6 +214,21 @@ def es_festivo_o_fin_de_semana(fecha: Union[datetime, pd.Timestamp]) -> bool:
     return False
 
 
+def get_estacion(fecha: date) -> str:
+    año = fecha.year
+    equi_mar  = ephem.next_equinox(f"{año}/1/1")
+    sols_jun  = ephem.next_solstice(equi_mar)
+    equi_sep  = ephem.next_equinox(sols_jun)
+    sols_dic  = ephem.next_solstice(equi_sep)
+
+    d = ephem.Date(fecha.strftime("%Y/%m/%d"))
+
+    if d < equi_mar:   return "invierno"
+    elif d < sols_jun: return "primavera"
+    elif d < equi_sep: return "verano"
+    elif d < sols_dic: return "otoño"
+    else:              return "invierno"
+
 def getSunData(
     lat: float, 
     lon: float, 
@@ -264,6 +280,9 @@ def getSunData(
         noon = noon.astimezone(ZoneInfo(tz_local))
     
     return {
+        "amanece": sunrise,
+        "ocaso": sunset,
+        "mediodia": noon,
         "sunrise": sunrise.hour + sunrise.minute / 60,
         "sunset": sunset.hour + sunset.minute / 60,
         "noon": noon.hour + noon.minute / 60

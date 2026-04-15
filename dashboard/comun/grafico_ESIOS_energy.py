@@ -28,7 +28,7 @@ def grafico_ESIOS_energy(df_energia: pd.DataFrame) -> go.Figure:
     - Línea vertical marcando el día actual
     
     Args:
-        df_energia: DataFrame con columnas ['Previsión eólica', 'Solar fotovoltaica', 'Previsión semanal', 'renovable']
+        df_energia: DataFrame con columnas ['Previsión eólica', 'Solar fotovoltaica', 'Previsión semanal', 'Renovable']
         
     Returns:
         Figura Plotly (go.Figure)
@@ -87,7 +87,7 @@ def grafico_ESIOS_energy(df_energia: pd.DataFrame) -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=df_energia.index,
-            y=df_energia["renovable"] / df_energia["Previsión semanal"] * 100,
+            y=df_energia["Renovable"] / df_energia["Previsión semanal"] * 100,
             mode="lines",
             name="%EO+FV / Demanda",
             line=dict(color="tomato", width=2, shape="spline", smoothing=1.3),

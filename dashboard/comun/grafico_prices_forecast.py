@@ -14,37 +14,43 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from dashboard.comun import date_conditions as dc
-from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast, get_ESIOS_spot
 from dashboard.comun.get_Som_data import get_Som_prices_history
 from dashboard.comun.get_prices_forecast import get_prices_forecast
 
 @st.cache_data
-def grafico_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas) -> Tuple[Optional[go.Figure], Optional[str]]:
+def grafico_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas, method: str = "lr") -> Tuple[Optional[go.Figure], Optional[str]]:
     """
     Crea gráfico interactivo de precios estimados vs spot.
     
     Genera un gráfico con:
     - Línea de precio estimado (naranja)
     - Línea de precio spot (azul)
+    - Línea de precio histórico SOM (verde, si disponible)
     - Rectángulos para fines de semana y festivos
     - Línea vertical marcando el día actual
     
     Args:
-        df_precios: DataFrame con columnas ['precio_estimado', 'Mercado SPOT']
+        _conn: Conexión a la base de datos SQLite
+        rango: Rango de fechas para filtrar los datos
+        method: Método de predicción ("lr" para regresión lineal, "rf" para Random Forest)
         
     Returns:
         Figura Plotly (go.Figure)
+        error en caso de error
         
     Example:
-        >>> df_prices = get_prices_forecast(df_energy, df_spot)
-        >>> fig = grafico_prices_forecast(df_prices)
-        >>> fig.show()
+        >>> fig, error = grafico_prices_forecast(_conn, rango, method)
+        >>> if error:
+        >>>     mensaje (error)
+        >>> else:
+        >>>     fig.show()
     """
-
-    df_precios, error = get_prices_forecast(rango)
+    # Obtenemos prevision de precios
+    df_precios, error = get_prices_forecast(_conn, rango, method)
     if error:
         return None, error
-    
+
+    # Obtenemos historico de precios Som
     df_Som, error = get_Som_prices_history(_conn, rango)
     if error:
         return None, error
@@ -83,7 +89,7 @@ def grafico_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas) ->
             x=df_precios.index,
             y=df_precios["precio_estimado"],
             mode="lines",
-            name="Precio estimado",
+            name=f"Precio estimado ({method})",
             line=dict(color="orange", width=2)
         )
     )
@@ -99,7 +105,7 @@ def grafico_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas) ->
         )
     )
 
-        # Línea de precio histórico SOM Energía
+    # Línea de precio histórico SOM Energía
     if df_Som is not None and not df_Som.empty:
         fig_estimacion.add_trace(
             go.Scatter(

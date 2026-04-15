@@ -7,3 +7,4 @@ TIMEZONE_LOCAL = "Europe/Madrid"
 # Parámetros de regresión lineal para estimación de precios
 SLOPE = -144.27
 INTERCEPT = 127.12
+

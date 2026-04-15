@@ -45,13 +45,13 @@ def get_meteo_7D(
         
     Returns:
         Tupla (dataframe, error) donde:
-        - dataframe: DataFrame con datos meteorológicos horarios
+        - dataframe: DataFrame con datos meteorológicos horarios en hora local (index datetime, columnas: temperature, cloud_cover, weather_code, precipitation_probability, direct_radiation)
         - error: None si es exitoso, mensaje de error si falla
         
     Example:
         >>> df, error = get_meteo_7D(40.4169, -3.7033, 0)
         >>> if not error:
-        ...     print(f"Temperatura promedio: {df['temperature_2m'].mean():.1f}°C")
+        ...     print(f"Temperatura promedio: {df['temperature'].mean():.1f}°C")
     """
     try:
         # Setup API client con cache y retry
@@ -71,7 +71,7 @@ def get_meteo_7D(
                 "cloud_cover",
                 "weather_code",
                 "precipitation_probability",
-                "direct_radiation"
+                "direct_radiation" #"global_tilted_irradiance_instant"
             ],
             "timezone": TCB.TIMEZONE_LOCAL,
             "azimuth": azimuth
@@ -88,6 +88,7 @@ def get_meteo_7D(
         hourly_weather_code = hourly.Variables(2).ValuesAsNumpy()
         hourly_precipitation_probability = hourly.Variables(3).ValuesAsNumpy()
         hourly_direct_radiation = hourly.Variables(4).ValuesAsNumpy()
+
 
         # Crear rango de fechas
         hourly_data = {
@@ -108,21 +109,21 @@ def get_meteo_7D(
         }
 
         # Agregar variables horarias
-        hourly_data["temperature_2m"] = hourly_temperature_2m
+        hourly_data["temperature"] = hourly_temperature_2m
         hourly_data["cloud_cover"] = hourly_cloud_cover
         hourly_data["weather_code"] = hourly_weather_code
         hourly_data["precipitation_probability"] = hourly_precipitation_probability
         hourly_data["direct_radiation"] = hourly_direct_radiation
 
         # Crear DataFrame
-        hourly_dataframe = pd.DataFrame(data=hourly_data)
-        hourly_dataframe["time"] = pd.to_datetime(hourly_dataframe["date"])
+        df_hourly = pd.DataFrame(data=hourly_data)
+        df_hourly.index = pd.to_datetime(df_hourly["date"]).dt.tz_localize(None)
+        df_hourly = df_hourly.drop(columns="date")
 
-        return hourly_dataframe, None
+        return df_hourly, None
 
     except Exception as e:
         return None, f"Error al obtener datos meteorológicos: {str(e)}"
-
 
 def get_meteo_hours(
     df_forecast: pd.DataFrame,
@@ -146,10 +147,10 @@ def get_meteo_hours(
         >>> df_24h = get_meteo_hours(df_7d, 24)
         >>> print(f"Datos para próximas 24h: {len(df_24h)} registros")
     """
-    now = pd.Timestamp.now(tz=df_forecast['time'].dt.tz)
+    now = pd.Timestamp.now(tz=df_forecast.index.tz)
     df_hours = df_forecast[
-        (df_forecast['time'] >= now) &
-        (df_forecast['time'] <= now + pd.Timedelta(hours=hours))
+        (df_forecast.index >= now) &
+        (df_forecast.index <= now + pd.Timedelta(hours=hours))
     ]
     return df_hours
 
@@ -244,7 +245,7 @@ def update_openmeteo_history(
 
         # Insert data into the table
         df.to_sql('METEO', conn, if_exists='append', index=True)
-        return f"Insertadas {len(df)} en METEO", None
+        return f"Insertadas {len(df)} filas en METEO desde {df.index.min()} hasta {df.index.max()}", None
 	
     except Exception as e:
         return None, f"Error al insertar datos en la base de datos: {e}"
