@@ -60,7 +60,7 @@ print(f"  step_type: {ind.get('step_type')}")
 
 df = pd.DataFrame(data)
 df["datetime"] = pd.to_datetime(df["datetime"], utc=True)
-df["datetime"] = df["datetime"].dt.tz_localize(None)
+# UTC # df["datetime"] = df["datetime"].dt.tz_localize(None)
 df = df.set_index("datetime").sort_index()
 df_hourly = df.select_dtypes(include='number').resample('h').mean()
 # print(r.status_code)

@@ -117,8 +117,9 @@ def get_meteo_7D(
 
         # Crear DataFrame
         df_hourly = pd.DataFrame(data=hourly_data)
-        df_hourly.index = pd.to_datetime(df_hourly["date"]).dt.tz_localize(None)
-        df_hourly = df_hourly.drop(columns="date")
+        df_hourly = df_hourly.set_index("date").sort_index() # UTC #
+        # UTC # df_hourly.index = pd.to_datetime(df_hourly["date"]).dt.tz_localize(None)
+        # UTC # df_hourly = df_hourly.drop(columns="date")
 
         return df_hourly, None
 

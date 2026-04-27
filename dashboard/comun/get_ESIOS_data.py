@@ -82,8 +82,9 @@ def get_indicator(indicator_id: int, date_range: RangoFechas, time_trunc: str = 
     variable = json_data["indicator"]["short_name"]
 
     df = pd.DataFrame(data)
-    df["datetime"] = pd.to_datetime(df["datetime"], utc=True)
-    df["datetime"] = df["datetime"].dt.tz_localize(None)
+
+    df["datetime"] = pd.to_datetime(df["datetime_utc"], utc=True)
+    # UTC # df["datetime"] = df["datetime"].dt.tz_localize(None)
     df = df.set_index("datetime").sort_index()
     #print(f"Retornadas {len(df)} filas\n")
     
@@ -91,6 +92,7 @@ def get_indicator(indicator_id: int, date_range: RangoFechas, time_trunc: str = 
     if indicator_id == IND_SPOT:
         df = df[df['geo_name'] == 'España']
         #print(f"Filtradas España {len(df)} filas")
+
     #Como los distintos indicators vienen con diferente timestamp y la funcion de agregación de ESIOS (time_trunc) no garantiza que metodo utiliza debemos hacerlo nosotros
     if time_trunc is not None:
         df = df.select_dtypes(include='number').resample(time_trunc).mean()
@@ -218,7 +220,7 @@ def get_ESIOS_spot(rango: RangoFechas) -> Tuple[Optional[pd.DataFrame], Optional
     if rango == None:
         hoy = date.today()
         df = spot.copy()
-        df.index = df.index.tz_localize("UTC")
+        # UTC # df.index = df.index.tz_localize("UTC")
         df_hoy = df[df.index.tz_convert("Europe/Madrid").normalize() == pd.Timestamp(hoy, tz="Europe/Madrid")]
         return df_hoy, None
 

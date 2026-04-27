@@ -181,8 +181,10 @@ def get_WIBEE_data(rango: RangoFechas, time_unit: Optional[str] = "hours")-> Tup
         result['extra'] = 'AEROTERMIA'
         result['power_Wp'] = TCB.CURRENT_PEAK_POWER
 
-        result["datetime"] = pd.to_datetime(result["datetime"], utc=True).dt.tz_localize(None)
-        result = result.set_index("datetime")
+        # UTC #result["datetime"] = pd.to_datetime(result["datetime"], utc=True).dt.tz_localize(None)
+        # UTC #result = result.set_index("datetime")
+        result["datetime"] = pd.to_datetime(result["datetime"], utc=True) # UTC #
+        result = result.set_index("datetime").sort_index() # UTC #
         return result, None
     except Exception as e:
         return None, f"Error al obtener datos de WIBEE: {e}"

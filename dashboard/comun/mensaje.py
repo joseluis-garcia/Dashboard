@@ -1,5 +1,5 @@
 """
-Módulo para mostrar mensajes e información al usuario.
+Módulo para mostrar mensajes de información al usuario y gestionar la comunicación via Telegram
 
 Proporciona funciones para:
 - Renderizar DataFrames con anchos personalizados
@@ -10,6 +10,7 @@ Proporciona funciones para:
 from typing import Optional, List, Dict, Any
 import streamlit as st
 import pandas as pd
+from dashboard.comun.safe_request import safe_request
 
 
 def render_df_proportional(
@@ -186,11 +187,23 @@ def formatear_precio(
     """
     return f"{precio:.2f}{moneda}"
 
+def send_TG_message( texto: str):
+    TG_token = st.secrets.get("TG_token")
+
+    TG_chat_id_mio = st.secrets.get("TG_chat_id_mio")
+    TG_chat_id_canal = st.secrets.get("TG_chat_id_canal")  
+
+    TG_url = f"https://api.telegram.org/bot{TG_token}/sendMessage"
+    data = dict(chat_id=TG_chat_id_mio, text= texto)
+    response, error = safe_request(TG_url,method="POST", params=data)
+
+    print(response, error)
 
 __all__ = [
     "render_df_proportional",
     "show_mensaje",
     "mostrar_alerta",
     "mostrar_recomendacion",
-    "formatear_precio"
+    "formatear_precio",
+    "send_TG_message"
 ]

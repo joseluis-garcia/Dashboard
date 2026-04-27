@@ -18,7 +18,6 @@ from dashboard.comun.grafico_prices_Som import grafico_prices_Som
 from dashboard.comun.grafico_solar_today import grafico_solar_today
 from dashboard.comun.grafico_prices_forecast import grafico_prices_forecast
 
-
 # Función para centrar el texto de los headers
 def header_centrado(texto):
     st.markdown(
@@ -61,6 +60,7 @@ st.markdown("""
 # TÍTULO PRINCIPAL
 # ---------------------------------------------------------
 st.set_page_config(layout="wide")
+
 st.title(f"Dashboard Meteorológico y de Precios de la Energía - {today.strftime('%Y-%m-%d %H:%M')}")
 # ---------------------------------------------------------
 # Obtenemos localizacion del usuario para utilizar en meteo y pvgis.

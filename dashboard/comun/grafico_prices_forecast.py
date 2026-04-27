@@ -11,6 +11,7 @@ import sqlite3
 from typing import Optional, Tuple
 import pandas as pd
 import plotly.graph_objects as go
+import pytz
 import streamlit as st
 
 from dashboard.comun import date_conditions as dc
@@ -49,12 +50,14 @@ def grafico_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas, me
     df_precios, error = get_prices_forecast(_conn, rango, method)
     if error:
         return None, error
+    df_precios.index = df_precios.index.tz_convert(pytz.timezone("Europe/Madrid"))
 
     # Obtenemos historico de precios Som
     df_Som, error = get_Som_prices_history(_conn, rango)
     if error:
         return None, error
-
+    df_Som.index = df_Som.index.tz_convert(pytz.timezone("Europe/Madrid"))
+    
     fig_estimacion = go.Figure()
 
     # Añadir rectángulos en los fines de semana
@@ -100,7 +103,7 @@ def grafico_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas, me
             x=df_precios.index,
             y=df_precios["Mercado SPOT"],
             mode="lines",
-            name="Precio spot",
+            name="Precio spot + peajes y cargos",
             line=dict(color="blue", width=2)
         )
     )

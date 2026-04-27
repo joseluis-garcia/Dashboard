@@ -18,7 +18,8 @@ def grafico_solar_today(conn, method="rf") -> Tuple[Optional[go.Figure], Optiona
     if error:
         return None, error
     
-    df1.index = df1.index.tz_localize("UTC").tz_convert("Europe/Madrid")
+    df1.index = df1.index.tz_convert("Europe/Madrid") # UTC #
+    # UTC # df1.index = df1.index.tz_localize("UTC").tz_convert("Europe/Madrid")
     local_tz = pytz.timezone("Europe/Madrid")
     df1["hour"] = df1.index.hour + df1.index.minute / 60.0
     

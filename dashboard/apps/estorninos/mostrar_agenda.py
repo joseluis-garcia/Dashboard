@@ -38,7 +38,7 @@ def mostrar_agenda(conn, opcion):
     if error:
         return None, error
 
-    df_final.index = df_final.index.tz_localize("UTC").tz_convert(tz)
+    df_final.index = df_final.index.tz_convert(tz)
     df_final["Renovable_pct"] = df_final['Renovable'] / df_final['Demanda real'] * 100
 
     min_r = df_final["Renovable_pct"].min()
@@ -55,7 +55,7 @@ def mostrar_agenda(conn, opcion):
         renovable = df_final.loc[dt, "Renovable_pct"]
         norm_r = (renovable - min_r) / (max_r - min_r) if max_r > min_r else 0.5
 
-        if opcion == 'Precio':
+        if opcion == 'Precio Estimado':
             norm = norm_p
             label   = f"{precio:.1f} €/MW"
             if norm >= 0.66:   color = "red"

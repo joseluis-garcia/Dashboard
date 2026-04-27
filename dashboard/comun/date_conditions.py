@@ -150,7 +150,7 @@ def periodo_2_0TD(fecha: datetime) -> str:
     - P3 (Valle): Lunes-Viernes 00-8h, y TODO el fin de semana/festivos
     
     Args:
-        fecha: datetime con la hora a verificar
+        fecha: datetime con la hora a verificar. Puede ser naive o con tz, se convertirá a Europe/Madrid si es UTC.
         
     Returns:
         String con el periodo: "P1", "P2" o "P3"
@@ -162,7 +162,11 @@ def periodo_2_0TD(fecha: datetime) -> str:
         >>> periodo
         'P1'
     """
+
     fecha_pd = pd.to_datetime(fecha)
+    if fecha_pd.tzinfo == "UTC":
+        fecha_pd = fecha_pd.tz_convert("Europe/Madrid")
+
     h = fecha_pd.hour
 
     # Festivos y fines de semana → todo P3 (valle)

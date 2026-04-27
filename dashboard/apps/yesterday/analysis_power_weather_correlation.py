@@ -179,7 +179,6 @@ def power_weather_correlation( conn):
     df_weather_forecast = df_weather_forecast.drop(columns=['precipitation_probability','weather_code','date','time'])
 
     df_future = predict_future(model, df_weather_forecast)
-    print(df_future)
     return df_future
 
 def grafico_prediccion_full( df):

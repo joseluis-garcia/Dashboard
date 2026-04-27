@@ -85,16 +85,10 @@ def mostrar_factura(conn, month, year, source):
 
         if prices_SPOT.empty:
             raise ValueError("The SPOT Prices DataFrame is empty!")
-        prices_SPOT['Mercado SPOT'] = prices_SPOT['Mercado SPOT'] / 1000
-        print("Energy:\n", energy.head())
-        print("SOM Prices:\n", prices_Som.head())
-        print("SPOT Prices:\n", prices_SPOT.head())
-    
+        prices_SPOT['Mercado SPOT'] = prices_SPOT['Mercado SPOT'] / 1000   
         prices_20TD = {'P1':0.229,'P2':0.153,'P3':0.125, 'Excedente':0.03}
         df_cost = energy.join([prices_Som, prices_SPOT], how='inner')
-        
-        print("Joined DataFrame:\n", df_cost.head(24))
-        
+               
         def calcular_coste(row):
             consumo = row['consumo']
             excedente = row['excedente']
@@ -122,14 +116,12 @@ def mostrar_factura(conn, month, year, source):
 
         # Show the result
         #df_cost["costDay"] = df_cost.drop(columns="datetime").sum(axis=1)
-        print("COST:\n", df_cost[df_cost['excedente']>0])
 
         # Group by month and sum values
         # df_monthly = df_cost.groupby(df_cost['datetime'].dt.to_period('M'))['costDay'].sum().reset_index()
         # df_monthly['datetime'] = df_monthly['datetime'].astype(str)
         df_monthly = df_cost
 
-        print("Monthly:\n", df_monthly[df_monthly['excedente']>0])
         euro_coste = df_monthly['cargo'].sum()
         euro_coste_20TD = df_monthly['cargo_20TD'].sum()
         euro_excedente = df_monthly['compensacion'].sum()
@@ -139,8 +131,6 @@ def mostrar_factura(conn, month, year, source):
         total_excedente = energy['excedente'].sum()
 
         bono_social = cteBonoSocial * days_in_month
-
-        print("MONTHLY", df_monthly.head(24))
 
         # Insert text with formatting
         reporte = f"Factura del mes de {mes_factura}\n\n"
