@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-from pathlib import Path
 import plotly.graph_objects as go
+import numpy as np
 from dashboard.comun.date_conditions import getSunDataRange
 from dashboard.comun.sql_utilities import read_sql_ts
 from datetime import date
@@ -16,19 +16,9 @@ def load_historico_precios_spot(_conn: sqlite3.Connection, estaciones=True, efem
 # Estas corrdenadas se utilizan para graficar las salidas y puestas del sol en el heatmap de precios
 
     PUERTA_SOL = dict(lat=40.4169, lon=-3.7033)
-    df_spot, error = read_sql_ts("select * from ESIOS_spot", _conn)
-# Ruta al csv dentro de comun con los precios spot 2024-2025
-# Desde: dashboard/apps/estorninos/historico_spot.py
-# A: dashboard/data/spot.csv
-    # current_file = Path(__file__)
-    # dashboard_dir = current_file.parents[2]  # Sube a dashboard/
-    # csv_path = dashboard_dir / "data" / "spot.csv"
-  
-    # df_spot = pd.read_csv(
-    #     csv_path,
-    #     sep=";", 
-    #     encoding="utf-8-sig")
-    
+    df_spot, error = read_sql_ts('select datetime, "Mercado SPOT" as price from ESIOS_data', _conn)
+
+   
     #df_spot["datetime"] = pd.to_datetime(df_spot["datetime"], utc=True)
     df_spot.index = df_spot.index.tz_convert('Europe/Madrid')
     df_spot["date"] = df_spot.index.date
@@ -49,6 +39,7 @@ def load_historico_precios_spot(_conn: sqlite3.Connection, estaciones=True, efem
 #===========================
 # Gráfico de heatmap de precios con Plotly
 #===========================
+    p95 = np.percentile(price_matrix.values, 95) #Quitamos los outliers para mejorar la visualización del heatmap
     fig_precios = go.Figure(
         data=go.Heatmap(
             z=price_matrix.values,
@@ -57,6 +48,8 @@ def load_historico_precios_spot(_conn: sqlite3.Connection, estaciones=True, efem
             colorbar=dict(
                 title="Precio €/MWh"   # ← equivalente a labels["color"]
             ),
+            zmax=p95,
+            zmin = 0,
             colorscale="Turbo"
         )
     )
@@ -111,7 +104,7 @@ def load_historico_precios_spot(_conn: sqlite3.Connection, estaciones=True, efem
 # Datos de salida y puesta del sol para superponer en el heatmap
 #===========================
        # df_sun = getSunDataRange(PUERTA_SOL,date(2024, 1, 1), date(2025, 12, 31), 15, "Europe/Madrid")
-        df_sun = getSunDataRange(PUERTA_SOL,date(2022, 1, 1), date(2025, 12, 31), 15, "UTC")
+        df_sun = getSunDataRange(PUERTA_SOL,date(2022, 1, 1), date(2026, 3, 31), 15)
 #==========================
 # PUNTOS DE SALIDA DEL SOL
 #==========================

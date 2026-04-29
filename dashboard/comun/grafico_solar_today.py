@@ -14,20 +14,36 @@ from dashboard.comun.get_WIBEE_data import get_WIBEE_today, get_WIBEE_today_hist
 from dashboard.comun.grafico_openmeteo import grafica_openmeteo
 
 def grafico_solar_today(conn, method="rf") -> Tuple[Optional[go.Figure], Optional[str]]:
-    df1, error = get_WIBEE_today()
+    """
+    Genera un gráfico de la producción solar de hoy con:
+    - Línea de producción real (datos WIBEE)
+    - Línea de producción promedio histórico (datos WIBEE)  
+    - Línea de producción estimada (modelo predictivo basado en datos de hoy)
+    - Línea de producción promedio PVGIS (datos PVGIS)
+    - Datos de salida: Figura Plotly (go.Figure) y mensaje de error (str) en caso de error
+
+    Args:
+        conn: Conexión a la base de datos SQLite
+        method: Método de predicción ("lr" para regresión lineal, "rf" para Random Forest)
+    Returns:
+        fig: Figura Plotly con la evolución de la producción solar de hoy
+        error: Mensaje de error en caso de fallo (None si no hay error)
+    """
+
+    # Obtenemos datos de producción solar de hoy desde WIBEE
+    df_WIBEE_today, error = get_WIBEE_today()
     if error:
         return None, error
+    df_WIBEE_today.index = df_WIBEE_today.index.tz_convert("Europe/Madrid") # Convertir a hora local
+    df_WIBEE_today["hour"] = df_WIBEE_today.index.hour + df_WIBEE_today.index.minute / 60.0
     
-    df1.index = df1.index.tz_convert("Europe/Madrid") # UTC #
-    # UTC # df1.index = df1.index.tz_localize("UTC").tz_convert("Europe/Madrid")
-    local_tz = pytz.timezone("Europe/Madrid")
-    df1["hour"] = df1.index.hour + df1.index.minute / 60.0
-    
-    df2, error = get_WIBEE_today_history(conn)
+    # Obtenemos histórico de producción WIBEE para comparar con la producción de hoy
+    df_WIBEE_history, error = get_WIBEE_today_history(conn)
     if error:
         return None, f"grafico_solar_today: {error}"
-
-    df3, error = get_PVGIS_data(conn)
+    
+    #Obtenemos datos de producción solar estimada para hoy a partir PVGIS
+    df_PVGIS, error = get_PVGIS_data(conn)
     if error:
         return None, f"Error al obtener datos de PVGIS: {error}"
 
@@ -52,27 +68,28 @@ def grafico_solar_today(conn, method="rf") -> Tuple[Optional[go.Figure], Optiona
     ))
 
     fig.add_trace(go.Scatter(
-        x=df1['hour'],
-        y=df1["solar_Wh"],
+        x=df_WIBEE_today['hour'],
+        y=df_WIBEE_today["solar_Wh"],
         name="Real (15min)",
         mode="lines"
     ))
 
     fig.add_trace(go.Scatter(
-        x=df2.index,
-        y=df2["solar_Wh"],
+        x=df_WIBEE_history.index,
+        y=df_WIBEE_history["solar_Wh"],
         name="WIBEE average",
         mode="lines",
         line=dict(dash="dash")
     ))
 
     fig.add_trace(go.Scatter(
-        x=df3['hour'],
-        y=df3["power_Wh"] * TCB.CURRENT_PEAK_POWER,
+        x=df_PVGIS['hour'],
+        y=df_PVGIS["power_Wh"] * TCB.CURRENT_PEAK_POWER,
         name="PVGIS average",
         mode="lines"
     ))
 
+    local_tz = pytz.timezone("Europe/Madrid")
     add_sun_data(fig, TCB.CASA['lat'], TCB.CASA['lon'], pd.Timestamp.now(tz=local_tz).date())
 
     fig.update_layout(

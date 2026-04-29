@@ -135,6 +135,10 @@ def init_WIBEE_data() -> bool:
 def get_WIBEE_data(rango: RangoFechas, time_unit: Optional[str] = "hours")-> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """
     Obtiene los datos de producción de energía de WIBEE en un rango de fechas especificado y devuelve un DataFrame con los resultados.
+    En WIBEE, cada canal representa una fuente de energía diferente (por ejemplo, solar, aerotermia, general). Esta función obtiene las mediciones de potencia para cada canal y las combina en un solo DataFrame con columnas separadas para cada fuente de energía.
+    La función añade una columna 'extra' con el valor 'AEROTERMIA' que es la medicion del canal adicional y una columna 'power_Wp' con el valor de potencia pico actual de la instalación (TCB.CURRENT_PEAK_POWER).
+    El df va indexado por datetime en formato UTC. Es responsabilidad del usuario convertirlo a la zona horaria local si es necesario.
+
     Args:
         rango: Un diccionario con las claves 'start_date' y 'end_date' que contienen las fechas de inicio y fin en formato ISO 8601 (ejemplo: '2025-03-17T23:00:00Z').
     Returns:
@@ -181,9 +185,7 @@ def get_WIBEE_data(rango: RangoFechas, time_unit: Optional[str] = "hours")-> Tup
         result['extra'] = 'AEROTERMIA'
         result['power_Wp'] = TCB.CURRENT_PEAK_POWER
 
-        # UTC #result["datetime"] = pd.to_datetime(result["datetime"], utc=True).dt.tz_localize(None)
-        # UTC #result = result.set_index("datetime")
-        result["datetime"] = pd.to_datetime(result["datetime"], utc=True) # UTC #
+        result["datetime"] = pd.to_datetime(result["datetime"], utc=True)
         result = result.set_index("datetime").sort_index() # UTC #
         return result, None
     except Exception as e:
@@ -218,6 +220,18 @@ def update_WIBEE_history(conn: sqlite3.Connection) -> Tuple[Optional[pd.DataFram
         return None,f"Error getting WIBEE data:{str(e)}"
 
 def get_WIBEE_today() -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+    '''
+    Obtiene los datos de producción de energía de WIBEE para el día actual y devuelve un DataFrame con los resultados.
+    Returns:
+        Un tuple con dos elementos:
+        - Un DataFrame con los datos de producción de energía obtenidos de WIBEE para el día actual, o None si ocurrió un error.
+        - Un mensaje de error en caso de que ocurra un error, o None si la operación fue exitosa.
+    Ejemplo de uso:
+        df, error = get_WIBEE_today()
+        if error:
+            print("Error al obtener datos de WIBEE para hoy:", error)
+        else:            print(df.head())
+    '''
 
     local_tz = pytz.timezone("Europe/Madrid")
     utc_tz = pytz.utc

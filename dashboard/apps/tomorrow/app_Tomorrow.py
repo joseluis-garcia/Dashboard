@@ -155,7 +155,7 @@ if mostrar_meteo:
         else:
             st.plotly_chart(fig_horas, width='stretch', config={"renderer": "svg"})
 # ---------------------------------------------------------
-# Panel predicción PVGIS
+# Panel predicción PVGIS e historico WIBEE mediante regresión lineal
 # ---------------------------------------------------------
 if mostrar_solar:
     header_centrado("Predicción producción fotovoltaica de hoy")

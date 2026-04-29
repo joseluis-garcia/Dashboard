@@ -26,7 +26,14 @@ from datetime import datetime, timedelta, timezone
 from dashboard.comun import sql_utilities as db
 import dashboard.apps.config as TCB
 
-
+'''
+params = {
+	"latitude": [52.52, 50.1155],
+	"longitude": [13.41, 8.6842],
+	"hourly": "temperature_2m",
+	"models": ["icon_global", "icon_eu"],
+}
+'''
 def get_meteo_7D(
     lat: float,
     lon: float,
@@ -71,10 +78,11 @@ def get_meteo_7D(
                 "cloud_cover",
                 "weather_code",
                 "precipitation_probability",
-                "direct_radiation" #"global_tilted_irradiance_instant"
+                "global_tilted_irradiance_instant"
             ],
             "timezone": TCB.TIMEZONE_LOCAL,
-            "azimuth": azimuth
+            "azimuth": azimuth,
+            "tilt": 10
         }
 
         # Realizar solicitud
@@ -117,9 +125,7 @@ def get_meteo_7D(
 
         # Crear DataFrame
         df_hourly = pd.DataFrame(data=hourly_data)
-        df_hourly = df_hourly.set_index("date").sort_index() # UTC #
-        # UTC # df_hourly.index = pd.to_datetime(df_hourly["date"]).dt.tz_localize(None)
-        # UTC # df_hourly = df_hourly.drop(columns="date")
+        df_hourly = df_hourly.set_index("date").sort_index()
 
         return df_hourly, None
 
