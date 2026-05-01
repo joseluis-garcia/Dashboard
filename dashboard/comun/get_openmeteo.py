@@ -15,7 +15,7 @@ import streamlit as st
 import openmeteo_requests
 import requests_cache
 from retry_requests import retry
-from dbm import sqlite3
+import sqlite3
 from typing import Tuple, Optional, Dict, Any
 import openmeteo_requests
 import pandas as pd

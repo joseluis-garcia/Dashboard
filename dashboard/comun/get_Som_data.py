@@ -7,7 +7,7 @@ Proporciona funciones para:
 - Mostrar comparativa de precios hoy vs mañana
 """
 
-from dbm import sqlite3
+import sqlite3
 from typing import Tuple, Optional
 import pandas as pd
 import streamlit as st

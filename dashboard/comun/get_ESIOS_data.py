@@ -9,7 +9,7 @@ Proporciona funciones
 - get_ESIOS_spot: Precio del mercado spot diario
 - update_ESIOS_history: Actualiza la tabla ESIOS_data con los datos historicos de energía y precio spot desde la última fecha registrada hasta la fecha actual
 """
-from dbm import sqlite3
+import sqlite3
 from typing import Tuple, Optional, Dict, Any
 import pandas as pd
 import streamlit as st

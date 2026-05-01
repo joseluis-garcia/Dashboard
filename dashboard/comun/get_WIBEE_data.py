@@ -9,7 +9,7 @@ Proporciona funciones
 - getPowerMeasurements: Obtiene las mediciones de potencia para cada canal del medidor registrado en WIBEE en un rango de fechas especificado
 - update_WIBEE_data: Actualiza la tabla WIBEE con los datos de producción de energía desde la última fecha registrada hasta la fecha actual
 """
-from dbm import sqlite3
+import sqlite3
 from typing import Tuple, Optional, Dict, Any
 import streamlit as st
 import pandas as pd
