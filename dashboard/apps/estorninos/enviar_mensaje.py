@@ -39,17 +39,20 @@ def calcular_mensaje() -> str:
     if error_omie:
         return None, f"No se han podido obtener los precios de ESIOS: {error_omie}"
     
-    df_omie = costes_regulados(df_omie)
     # Convertimos el indice a hora local
     df_omie = df_omie.tz_convert("Europe/Madrid")
+    # Horas a las que la compensacion de excedentes es negativa
     df_negativos = df_omie[df_omie["Mercado SPOT"] < 0]
-    df_positivos = df_omie[df_omie["Mercado SPOT"] >= 0]
+
+    df_precios = costes_regulados(df_omie)
+    df_precios = df_precios[df_precios["Mercado SPOT"] >= 0]
+
     if not df_negativos.empty:
         horas_negativo_str = ", ".join(df_negativos.index.hour.astype(str))
 
-    df_omie_barato=df_positivos[df_positivos["Mercado SPOT"]<df_positivos["Mercado SPOT"].quantile(0.1)]
+    df_omie_barato=df_precios[df_precios["Mercado SPOT"]<df_precios["Mercado SPOT"].quantile(0.1)]
     horas_barato_str = ", ".join(df_omie_barato.index.hour.astype(str))
-    df_omie_caro=df_positivos[df_positivos["Mercado SPOT"]>df_positivos["Mercado SPOT"].quantile(0.9)]
+    df_omie_caro=df_precios[df_precios["Mercado SPOT"]>df_precios["Mercado SPOT"].quantile(0.9)]
     horas_caro_str = ", ".join(df_omie_caro.index.hour.astype(str))
 
     df_meteo = get_meteo_today()  # Madrid
@@ -65,7 +68,7 @@ def calcular_mensaje() -> str:
         mensaje += f"Las horas de salida y puesta de sol serán: {row['sunrise']} y {row['sunset']} respectivamente.\n"
 
     if not df_negativos.empty:
-        mensaje += f"\nLas horas con precios negativos serán: {horas_negativo_str}.\n"
+        mensaje += f"\nLas horas con precios de excedentes negativos serán: {horas_negativo_str}.\n"
     mensaje += f"Las horas con precios muy bajos no negativos (por debajo del 10% de los precios) serán: {horas_barato_str}.\n"
     mensaje += f"Las horas con precios muy altos (por encima del 90% de los precios) serán: {horas_caro_str}.\n"
     mensaje += "\n¡Que tengas un buen día! 🌞"
