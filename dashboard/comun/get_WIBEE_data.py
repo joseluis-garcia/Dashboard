@@ -185,7 +185,7 @@ def get_WIBEE_data(rango: RangoFechas, time_unit: Optional[str] = "hours")-> Tup
         result['extra'] = 'AEROTERMIA'
         result['power_Wp'] = TCB.CURRENT_PEAK_POWER
 
-        result["datetime"] = pd.to_datetime(result["datetime"], utc=True)
+        result["datetime"] = pd.to_datetime(result["datetime"], utc=True).dt.tz_localize(None) # Convertir a datetime y eliminar la zona horaria (quedará en UTC)
         result = result.set_index("datetime").sort_index() # UTC #
         return result, None
     except Exception as e:

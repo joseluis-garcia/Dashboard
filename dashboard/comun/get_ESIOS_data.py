@@ -83,7 +83,7 @@ def get_indicator(indicator_id: int, date_range: RangoFechas, time_trunc: str = 
 
     df = pd.DataFrame(data)
 
-    df["datetime"] = pd.to_datetime(df["datetime_utc"], utc=True)
+    df["datetime"] = pd.to_datetime(df["datetime_utc"], utc=True)        
     # UTC # df["datetime"] = df["datetime"].dt.tz_localize(None)
     df = df.set_index("datetime").sort_index()
     #print(f"Retornadas {len(df)} filas\n")
@@ -261,7 +261,8 @@ def update_ESIOS_history(conn: sqlite3.Connection) -> Tuple[Optional[str], Optio
         
         print("Uniendo datos de energia y SPOT")
         df_final = pd.concat([df_energy, df_spot], axis=1).reset_index()
-
+        df_final["datetime"] = pd.to_datetime(df_final["datetime"], utc=True).dt.tz_localize(None)
+        
         print(f"Insertando filas {df_final.head()} en la base de datos")
         df_final.to_sql('ESIOS_data', conn, if_exists='append', index=False )
         return f"Insertadas {len(df_final)} filas en ESIOS_data desde {df_final.index.min()} hasta {df_final.index.max()}", None

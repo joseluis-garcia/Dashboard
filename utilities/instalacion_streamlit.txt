@@ -1,0 +1,91 @@
+# Instalar venv si no lo tienes
+sudo apt update && sudo apt install python3-venv python3-pip -y
+
+# Crear el entorno
+python3 -m venv ~/.venv/streamlit
+
+# Activarlo
+source ~/.venv/streamlit/bin/actívate
+
+pip install streamlit
+
+# Verificar
+streamlit --versión
+
+# Clonar repo de GitHub
+git clone https://github.com/joseluis-garcia/Dashboard.git Dashboard
+
+### Configurar fichero /Dashboard/.streamlit/.secrets.toml con las claves a acceso personales
+
+
+### Abre el firewall en IONOS
+
+En la configuración del servidor busca Firewall o Network añadir una regla nueva:
+
+Campo
+Valor
+Protocolo : TCP
+Puerto origen : Any
+Puerto destino : 8501
+Acción: Allow
+
+### No estoy seguro si esto también hace falta
+# Con ufw
+sudo ufw allow 8501
+
+
+### Ejecutar
+cd Dashboard
+streamlit run app_estorninos.py --server.port 8501 --server.address 0.0.0.0
+
+#El --server.address 0.0.0.0 es importante para que sea accesible desde fuera del servidor.
+
+### Crea un servicio para que arranque automáticamente:
+sudo nano /etc/systemd/system/estorninos.service
+
+[Unit]
+Description=Estorninos Dashboard
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/Dashboard
+ExecStart=/root/.env/streamlit/bin/streamlit run run_estorninos.py \
+          --server.port 8501 \
+          --server.address 0.0.0.0 \
+          --server.headless true
+Restart=always
+RestartSec=5
+StandardOutput=append:/root/Dashboard/log/estorninos.log
+StandardError=append:/root/Dashboard/log/estorninos.log
+
+[Install]
+WantedBy=multi-user.target
+
+### Para que el log no crezca indefinidamente
+sudo nano /etc/logrotate.d/estorninos
+/root/Dashboard/estorninos.log {
+    weekly
+    rotate 4
+    compress
+    missingok
+    notifempty
+}
+
+### Activarlo:
+sudo systemctl daemon-reload
+sudo systemctl enable estorninos
+sudo systemctl start estorninos
+sudo systemctl status estorninos
+
+# Parar el servicio
+sudo systemctl stop estorninos
+
+# Reiniciar el servicio
+sudo systemctl restart estorninos
+
+# Ver logs en tiempo real
+tail -f /root/Dashboard/estorninos.log
+
+### ejecutarlo en remoto
+http://212.227.255.101:8501/

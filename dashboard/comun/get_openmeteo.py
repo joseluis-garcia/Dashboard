@@ -8,6 +8,7 @@ Proporciona funciones para:
 """
 
 from typing import Tuple, Optional
+from zoneinfo import ZoneInfo
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -28,12 +29,55 @@ import dashboard.apps.config as TCB
 
 '''
 params = {
-	"latitude": [52.52, 50.1155],
-	"longitude": [13.41, 8.6842],
+	"latitude": [40.4165, 41.9831,37.3828],
+	"longitude": [-3.7026, 2.8249, -5.9732],
 	"hourly": "temperature_2m",
 	"models": ["icon_global", "icon_eu"],
 }
 '''
+
+WEATHER_CODE_SPANISH_ICON = {
+    0:  ("Cielo despejado", "☀️"),
+
+    1:  ("Mayormente despejado", "🌤️"),
+    2:  ("Parcialmente nublado", "⛅"),
+    3:  ("Cubierto", "☁️"),
+
+    45: ("Niebla", "🌫️"),
+    48: ("Niebla con escarcha", "🌫️❄️"),
+
+    51: ("Llovizna ligera", "🌦️"),
+    53: ("Llovizna moderada", "🌦️"),
+    55: ("Llovizna intensa", "🌧️"),
+
+    56: ("Llovizna helada ligera", "🌧️🧊"),
+    57: ("Llovizna helada intensa", "🌧️❄️"),
+
+    61: ("Lluvia ligera", "🌦️"),
+    63: ("Lluvia moderada", "🌧️"),
+    65: ("Lluvia intensa", "🌧️🌧️"),
+
+    66: ("Lluvia helada ligera", "🌧️🧊"),
+    67: ("Lluvia helada intensa", "🌧️❄️"),
+
+    71: ("Nieve ligera", "🌨️"),
+    73: ("Nieve moderada", "🌨️❄️"),
+    75: ("Nieve intensa", "❄️❄️"),
+
+    77: ("Granos de nieve", "🌨️"),
+
+    80: ("Chubascos ligeros", "🌦️"),
+    81: ("Chubascos moderados", "🌧️"),
+    82: ("Chubascos violentos", "⛈️🌧️"),
+
+    85: ("Chubascos de nieve ligeros", "🌨️"),
+    86: ("Chubascos de nieve intensos", "❄️🌨️"),
+
+    95: ("Tormenta", "⛈️"),
+    96: ("Tormenta con granizo ligero", "⛈️🌨️"),
+    99: ("Tormenta con granizo intenso", "⛈️❄️"),
+}
+
 def get_meteo_7D(
     lat: float,
     lon: float,
@@ -160,6 +204,60 @@ def get_meteo_hours(
         (df_forecast.index <= now + pd.Timedelta(hours=hours))
     ]
     return df_hours
+
+def openmeteo_daily_to_df(response, city_name) -> Dict[str, Any]:
+    daily = response.Daily()
+    row={"ciudad": city_name}
+    hora = datetime.fromtimestamp(daily.Variables(0).ValuesInt64AsNumpy()[0], tz=ZoneInfo("Europe/Madrid"))
+    row["sunrise"] = hora.strftime("%H:%M").lstrip("0")
+    hora = datetime.fromtimestamp(daily.Variables(1).ValuesInt64AsNumpy()[0], tz=ZoneInfo("Europe/Madrid"))
+    row["sunset"] = hora.strftime("%H:%M").lstrip("0")
+    row["weather_code"] = daily.Variables(2).ValuesAsNumpy()[0]
+    row["temperature_2m_max"] = daily.Variables(3).ValuesAsNumpy()[0]
+    row["temperature_2m_min"] = daily.Variables(4).ValuesAsNumpy()[0]
+    return row
+
+
+def get_meteo_today()-> pd.DataFrame:
+    """
+    Obtiene los datos meteorológicos para el día actual.
+    
+    Returns:
+        DataFrame con los datos meteorológicos para el día actual
+        
+    Example:
+        >>> df_today = get_meteo_today()
+        >>> print(f"Datos para hoy: {len(df_today)} registros")
+    """
+    # Setup the Open-Meteo API client with cache and retry on error
+    cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
+    retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
+    openmeteo = openmeteo_requests.Client(session = retry_session)
+
+    # Make sure all required weather variables are listed here
+    # The order of variables in hourly or daily is important to assign them correctly below
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude": [40.4165, 41.9831,37.3828],
+        "longitude": [-3.7026, 2.8249, -5.9732],
+        "daily": ["sunrise", "sunset", "weather_code", "temperature_2m_max", "temperature_2m_min"],
+        "timezone": "Europe/Madrid",
+        "forecast_days": 1,
+    }
+    responses = openmeteo.weather_api(url, params = params)
+
+    cities = ["Madrid", "Girona", "Sevilla"]
+    rows = []
+
+    for city, resp in zip(cities, responses):
+        rows.append( openmeteo_daily_to_df(resp, city))
+
+    daily_dataframe = pd.DataFrame(rows)
+    daily_dataframe["weather_desc"] = daily_dataframe["weather_code"].map(lambda c: WEATHER_CODE_SPANISH_ICON[c][0])
+    daily_dataframe["weather_icon"] = daily_dataframe["weather_code"].map(lambda c: WEATHER_CODE_SPANISH_ICON[c][1])
+
+    return daily_dataframe
+
 
 def update_openmeteo_history(
 		conn: Optional[sqlite3.Connection] = None) -> Tuple[

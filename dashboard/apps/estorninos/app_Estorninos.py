@@ -119,7 +119,7 @@ with tab_agenda:
             unsafe_allow_html=True
         )
     with col2:
-        opcion = st.selectbox("", ["Renovable versus Demanda", "Precio Estimado"])
+        opcion = st.selectbox(" Prueba ", ["Renovable versus Demanda", "Precio Estimado"])
     with col3:
         st.empty()
 
