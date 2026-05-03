@@ -35,20 +35,21 @@ dashboard-energy/
 │   └── apps/                       # Aplicaciones Streamlit
 │       ├── yesterday/              # Análisis histórico
 │       │   ├── app_Yesterday.py
-│       │   ├── analysis_energy_spot_correlation
-│       │   ├── analysis_power_weather_correlation.py
-│       │   ├── aerotermia.py
+│       │   ├── analysis_energy_spot_correlation.py     # Correlacion precios SPOT con renovables
+│       │   ├── analysis_power_weather_correlation.py   # Correlacion generacion WIBEE con openmeteo
+│       │   ├── aerotermia.py       # Cálculos de consumo de aerotermia
 │       │   ├── energia_mes.py
-│       │   ├── mostrar_factura.py
+│       │   ├── mostrar_factura.py  # Calcula factura Som a partir de precios estimados
 │       │
 │       ├── tomorrow/               # Pronóstico del día
 │       │   └── app_Tomorrow.py
 │       │
 │       └── estorninos/             # Predicción de precios
 │           ├── app_Estorninos.py
-│           ├── historico_spot.py
-│           └── historico_temperaturas.py
-│           └── mostrar_agenda.py
+│           ├── historico_spot.py   # Muestra heatmap de precios desde measures.db
+│           └── historico_temperaturas.py # Muestra heatmap de temperaturas desde measures.db
+│           └── mostrar_agenda.py   # Muestra panel de agenda de precios o renovable
+│           └── enviar_mensaje.py   # Envia el mensaje diario de TG
 │
 ├── tests/                          # Tests unitarios e integración
 │   ├── conftest.py                # Fixtures compartidas
@@ -139,8 +140,8 @@ dashboard-energy/
 
 ### OpenMeteo
 
-- Pronóstico meteorológico (temperatura, humedad, nubosidad)
-- Datos históricos de temperatura
+- Pronóstico meteorológico (temperatura, humedad, nubosidad, probabilidad de lluvia y radiación)
+- Datos históricos de las mismas variables almacenadas en measures.db
 - Resolución: cada 1 hora
 
 ### PVGIS
@@ -148,6 +149,7 @@ dashboard-energy/
 - Estimación de producción fotovoltaica
 - Basado en irradiancia solar
 - Ajustado por nubosidad (del pronóstico de OpenMeteo)
+- Almacenado de forma estatica en mesaures.db
 
 ## 💾 Base de Datos
 
@@ -158,7 +160,7 @@ Almacena:
 - Lecturas de energía (consumo, generación)
 - Histórico de precios spot
 - Datos meteorológicos históricos
-- Medidas de sistemas de aerotermia
+- Medidas del sistema WIBEE local
 
 **Esquema aproximado:**
 
@@ -207,7 +209,7 @@ tests/
     └── test_pvgis.py
 ```
 
-### Ejecución
+### Ejecución de test (pendiente)
 
 ```bash
 # Todos los tests
@@ -230,8 +232,6 @@ pytest tests/test_date_conditions.py -v
 
 ### Lazy Loading
 
-- Cargar solo rango de fechas necesario (no todo el histórico)
-- Resamplear datos para visualizaciones grandes
 - Usar Plotly con `renderer: svg` para gráficos más rápidos
 
 ### Connection Pooling

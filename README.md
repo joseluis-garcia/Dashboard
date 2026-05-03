@@ -101,7 +101,6 @@ ESIOS_token
 WIBEE_email
 WIBEE_password
 TG_token
-TG_chat_id_mio
 TG_chat_id_canal
 
 [database]

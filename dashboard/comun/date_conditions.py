@@ -486,3 +486,44 @@ def local_to_utc(ts_str: str) -> str:
     dt_utc = dt_local.astimezone(ZoneInfo("UTC"))
 
     return dt_utc.isoformat(sep=" ")
+
+def horas_a_texto(datetimes: List[Union[datetime, pd.Timestamp]]) -> str:
+    """
+    Convierte una lista de objetos datetime a un texto con tramos horarios.
+    Por ejemplo, si las horas son [1:00, 2:00, 3:00, 5:00], el resultado será:  "de 01:00 a 03:00 y a las 05:00"
+    arguments:
+    datetimes: Lista de objetos datetime o pandas Timestamp
+    returns: String con los tramos horarios formateados
+    """
+
+    if not datetimes:
+        return ""
+
+    # Convertir a horas enteras (0–23)
+    horas = sorted({dt.hour for dt in datetimes})
+
+    tramos = []
+    inicio = horas[0]
+    anterior = horas[0]
+
+    for h in horas[1:]:
+        if h == anterior + 1:
+            anterior = h
+        else:
+            tramos.append((inicio, anterior))
+            inicio = h
+            anterior = h
+
+    tramos.append((inicio, anterior))
+
+    partes = []
+    for ini, fin in tramos:
+        if ini == fin:
+            partes.append(f"a las {ini:02d}:00")
+        else:
+            partes.append(f"de {ini:02d}:00 a {fin:02d}:00")
+
+    if len(partes) > 1:
+        return ", ".join(partes[:-1]) + " y " + partes[-1]
+    else:
+        return partes[0]

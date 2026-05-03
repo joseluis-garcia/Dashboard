@@ -199,7 +199,7 @@ def get_ESIOS_spot(rango: RangoFechas) -> Tuple[Optional[pd.DataFrame], Optional
     del sistema eléctrico español.
     
     Args:
-        rango: Diccionario con 'start_date' y 'end_date'
+        rango: Diccionario con 'start_date' y 'end_date'. Si es None, se obtienen los datos del día actual.
         
     Returns:
         Tupla (dataframe, error) donde:
@@ -220,7 +220,6 @@ def get_ESIOS_spot(rango: RangoFechas) -> Tuple[Optional[pd.DataFrame], Optional
     if rango == None:
         hoy = date.today()
         df = spot.copy()
-        # UTC # df.index = df.index.tz_localize("UTC")
         df_hoy = df[df.index.tz_convert("Europe/Madrid").normalize() == pd.Timestamp(hoy, tz="Europe/Madrid")]
         return df_hoy, None
 
