@@ -8,14 +8,14 @@ import tomllib
 from pathlib import Path
 from datetime import date
 
-from dashboard.comun.costes_regulados import costes_regulados
-
 '''
 Este código es para independizar la app de Estorninos del resto del proyecto, permitiendo que se ejecute de forma autónoma para calcular y enviar el mensaje diario a Telegram sin necesidad de cargar toda la app ni sus dependencias. Para ello, se carga manualmente el archivo de secrets y se parchea st.secrets antes de cualquier import que lo utilice.'''
+
 BASE_DIR = Path(__file__).parent.parent.parent.parent
 secrets_path = BASE_DIR / ".streamlit" / "secrets.toml"
 project_path = BASE_DIR
 
+print(f"Path del proyecto: {project_path}")
 # Uso
 sys.path.insert(0, str(project_path))
 
@@ -36,6 +36,7 @@ from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast, get_ESIOS_
 from dashboard.comun.get_openmeteo import get_meteo_today
 from dashboard.comun.mensaje import send_TG_message
 from dashboard.comun.date_conditions import get_estacion, horas_a_texto
+from dashboard.comun.costes_regulados import costes_regulados
 
 def calcular_mensaje() -> str:
     '''
