@@ -86,7 +86,6 @@ def get_indicator(indicator_id: int, date_range: RangoFechas, time_trunc: str = 
     df["datetime"] = pd.to_datetime(df["datetime_utc"], utc=True)        
     # UTC # df["datetime"] = df["datetime"].dt.tz_localize(None)
     df = df.set_index("datetime").sort_index()
-    #print(f"Retornadas {len(df)} filas\n")
     
     #En IND_SPOT devuelve precios de diversos paises, nos debemos quedar solo con España
     if indicator_id == IND_SPOT:

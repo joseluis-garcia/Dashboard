@@ -3,7 +3,7 @@ import sys
 from datetime import date, datetime, timedelta
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import pytz
+from zoneinfo import ZoneInfo
 from dashboard.comun.mensaje import send_TG_message
 from dashboard.comun import date_conditions as dc
 from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast
@@ -23,8 +23,8 @@ if conn is None:
 # =========================
 # Rango temporal de analisis hoy menos 5 dias y hoy mas 10 dias en futuro
 # =========================
-tz = pytz.timezone("Europe/Madrid")
-today = tz.localize(datetime.now().replace(minute=0, second=0, microsecond=0))
+tz = ZoneInfo("Europe/Madrid")
+today = datetime.now(tz).replace(minute=0, second=0, microsecond=0)
 start_date = today + timedelta(days=-5)
 end_date = today + timedelta(days=10)
 # Para probar fechas fijas

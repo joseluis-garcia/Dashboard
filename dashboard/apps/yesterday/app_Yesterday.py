@@ -5,6 +5,7 @@ from datetime import datetime
 
 from dashboard.apps.yesterday.analysis_energy_spot_correlation import grafico_prediccion_energia
 from dashboard.apps.yesterday.analysis_power_weather_correlation import grafico_prediccion_simple
+from dashboard.comun.get_DATADIS_data import upodate_DATADIS_data
 import dashboard.comun.sql_utilities as db
 
 
@@ -174,6 +175,12 @@ elif pagina == "Ajustes":
                 # Acción dependiente del concepto
                 placeholder = st.empty()
                 placeholder.success(f"Ejecutando acción para concepto {row['Tabla']} (fila {idx})")
+                if idx == 0:
+                    resultado, error = upodate_DATADIS_data(conn)
+                    if error:
+                        placeholder.error(error)
+                    else:
+                        placeholder.success(resultado)
                 if idx == 1:
                     st.success("Nada que actualizar")
                 if idx == 2:

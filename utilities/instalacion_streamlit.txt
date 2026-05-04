@@ -89,3 +89,13 @@ tail -f /root/Dashboard/estorninos.log
 
 ### ejecutarlo en remoto
 http://212.227.255.101:8501/
+
+### para la ejecución del servicio de avisos
+crontab -e
+# A las 8:00 cada día
+0 8 * * * /root/.env/streamlit/bin/python3 /root/Dashboard/dashboard/apps/estorninos/enviar_mensaje.py (daily)
+# Cada hora en punto
+0 * * * * /root/.env/streamlit/bin/python3 /root/Dashboard/dashboard/apps/estorninos/enviar_mensaje.py (hourly)
+
+# Cada hora excepto a las 8 (para no duplicar)
+0 * * * * [ $(date +\%H) != "08" ] && /root/.env/streamlit/bin/python3 /root/Dashboard/dashboard/apps/estorninos/enviar_mensaje.py hourly

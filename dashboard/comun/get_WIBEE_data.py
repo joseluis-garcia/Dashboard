@@ -185,7 +185,9 @@ def get_WIBEE_data(rango: RangoFechas, time_unit: Optional[str] = "hours")-> Tup
         result['extra'] = 'AEROTERMIA'
         result['power_Wp'] = TCB.CURRENT_PEAK_POWER
 
-        result["datetime"] = pd.to_datetime(result["datetime"], utc=True).dt.tz_localize(None) # Convertir a datetime y eliminar la zona horaria (quedará en UTC)
+         # Convertir a datetime quedará en UTC
+        result["datetime"] = pd.to_datetime(result["datetime"], utc=True)
+
         result = result.set_index("datetime").sort_index() # UTC #
         return result, None
     except Exception as e:
@@ -210,6 +212,13 @@ def update_WIBEE_history(conn: sqlite3.Connection) -> Tuple[Optional[pd.DataFram
             'end_date': strEndDate
         }
         result, error = get_WIBEE_data(rango)
+
+        if error:
+            return None, f"update_WIBEE_history: {error}"
+        
+
+        result.index = result.index.tz_localize(None)
+
         if error:
             return None, error
         

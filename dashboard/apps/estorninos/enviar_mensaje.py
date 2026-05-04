@@ -32,7 +32,7 @@ class FakeSecrets(dict):
 st.secrets = FakeSecrets(_secrets)
 
 # A partir de aquí todos los imports leen st.secrets normalmente
-from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast, get_ESIOS_spot
+from dashboard.comun.get_ESIOS_data import get_ESIOS_spot
 from dashboard.comun.get_openmeteo import get_meteo_today
 from dashboard.comun.mensaje import send_TG_message
 from dashboard.comun.date_conditions import get_estacion, horas_a_texto
@@ -53,7 +53,7 @@ def calcular_mensaje() -> str:
     
     # Convertimos el indice a hora local
     df_omie = costes_regulados(df_omie)
-    df_omie = df_omie.tz_convert("Europe/Madrid")  
+    df_omie = df_omie.tz_convert("Europe/Madrid")
 
     # Horas a las que la compensacion de excedentes es negativa
     df_negativos = df_omie[df_omie["Mercado SPOT"] < 0]

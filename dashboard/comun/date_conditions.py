@@ -12,14 +12,11 @@ import base64
 from datetime import datetime, timedelta, date
 from typing import TypedDict, List, Tuple, Union, Optional
 import pandas as pd
-import pytz
+from zoneinfo import ZoneInfo
 import holidays
 import streamlit as st
 import ephem
-from zoneinfo import ZoneInfo
 import plotly.graph_objects as go
-
-
 
 class RangoFechas(TypedDict):
     """Diccionario que define un rango de fechas."""
@@ -61,15 +58,15 @@ def date_conditions_init(rango: RangoFechas) -> None:
         
     Example:
         >>> rango = {
-        ...     'start_date': datetime(2026, 1, 1, tzinfo=pytz.UTC),
-        ...     'end_date': datetime(2026, 12, 31, tzinfo=pytz.UTC)
+        ...     'start_date': datetime(2026, 1, 1, tzinfo=ZoneInfo("UTC")),
+        ...     'end_date': datetime(2026, 12, 31, tzinfo=ZoneInfo("UTC"))
         ... }
         >>> date_conditions_init(rango)
     """
     global today, festivos, weekends
     
-    tz = pytz.timezone("Europe/Madrid")
-    today = tz.localize(datetime.now().replace(minute=0, second=0, microsecond=0))
+    tz = ZoneInfo("Europe/Madrid")
+    today = datetime.now(tz).replace(minute=0, second=0, microsecond=0)
     festivos = get_festivos(rango)
     weekends = get_weekends(rango)
 
@@ -162,9 +159,8 @@ def periodo_2_0TD(fecha: datetime) -> str:
         >>> periodo
         'P1'
     """
-
     fecha_pd = pd.to_datetime(fecha)
-    if fecha_pd.tzinfo == "UTC":
+    if str(fecha_pd.tzinfo) in ("UTC", "utc"):
         fecha_pd = fecha_pd.tz_convert("Europe/Madrid")
 
     h = fecha_pd.hour
