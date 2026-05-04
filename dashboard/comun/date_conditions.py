@@ -517,7 +517,7 @@ def horas_a_texto(datetimes: List[Union[datetime, pd.Timestamp]]) -> str:
         if ini == fin:
             partes.append(f"a las {ini:02d}:00")
         else:
-            partes.append(f"de {ini:02d}:00 a {fin:02d}:00")
+            partes.append(f"de {ini:02d}:00 a {(fin+1):02d}:00")
 
     if len(partes) > 1:
         return ", ".join(partes[:-1]) + " y " + partes[-1]
