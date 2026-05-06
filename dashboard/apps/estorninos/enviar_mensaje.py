@@ -68,6 +68,7 @@ def calcular_mensaje() -> str:
     #horas_barato_str = ", ".join(df_omie_barato.index.hour.astype(str))
     df_omie_caro=df_omie[df_omie["Mercado SPOT"]>df_omie["Mercado SPOT"].quantile(0.9)]
     horas_caro_str = horas_a_texto(df_omie_caro.index.tolist())
+    #horas_caro_str = ", ".join(df_omie_caro.index.hour.astype(str))
 
     df_meteo = get_meteo_today()  # Madrid
     fecha = date.today()
@@ -81,10 +82,12 @@ def calcular_mensaje() -> str:
         mensaje += f"\n-> {row['ciudad']} {row['weather_icon']}  {row['weather_desc']} con temperaturas entre {row['temperature_2m_min']:.1f}°C y {row['temperature_2m_max']:.1f}°C. "
         mensaje += f"Las horas de salida y puesta de sol serán: {row['sunrise']} y {row['sunset']} respectivamente.\n"
 
-    if not df_negativos.empty:
-        mensaje += f"\nLas horas con precios de excedentes negativos serán: {horas_negativo_str}.\n"
     mensaje += f"Las horas con precios mas bajos (por debajo del 10% de los precios) serán: {horas_barato_str}.\n"
     mensaje += f"Las horas con precios mas altos (por encima del 90% de los precios) serán: {horas_caro_str}.\n"
+    if not df_negativos.empty:
+        mensaje += f"\nLas horas con precios de excedentes negativos serán: {horas_negativo_str}.\n"
+    else:
+        mensaje += f"\nNo se esperan horas con precios de excedentes negativos hoy.\n"
     mensaje += "\n¡Que tengas un buen día! 🌞"
 
     return mensaje

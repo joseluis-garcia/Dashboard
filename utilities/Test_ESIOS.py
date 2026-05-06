@@ -6,7 +6,7 @@ import pandas as pd
 
 API_TOKEN = "d24bdfb17a69ea6568815918ee3309c3233ab055fe96340da8cd78e71ee9170e"
 
-url = "https://api.esios.ree.es/indicators/551"  # indicador
+url = "https://api.esios.ree.es/indicators/1209"  # indicador
 
 tz = pytz.timezone("Europe/Madrid")
 today = tz.localize(datetime.now().replace(minute=0, second=0, microsecond=0))
@@ -33,8 +33,8 @@ PARAMS = {
 }
 
 rango = {
-    'start_date': datetime(2022, 3, 26).strftime('%Y-%m-%dT%H:%M:%S'),
-    'end_date': datetime(2022, 3, 27).strftime('%Y-%m-%dT%H:%M:%S')
+    'start_date': datetime(2022, 5, 4).strftime('%Y-%m-%dT%H:%M:%S'),
+    'end_date': datetime(2022, 5, 6).strftime('%Y-%m-%dT%H:%M:%S')
 }
 print(rango)
 
@@ -46,7 +46,7 @@ PARAMS = {
 print("PARAMS:", PARAMS)
 
 r = requests.get(url, headers=headers, params=PARAMS).json()
-# print(r)
+print("Devuelto request:", r)
 # print(r["indicator"]["values"]) #[0].keys())
 # print(json.dumps(r, indent=1, ensure_ascii=False))
 data = r["indicator"]["values"]
@@ -59,6 +59,7 @@ print(f"  geo_agg  : {ind.get('geo_agg')}")
 print(f"  step_type: {ind.get('step_type')}") 
 
 df = pd.DataFrame(data)
+print(df.head())
 df["datetime"] = pd.to_datetime(df["datetime"], utc=True)
 # UTC # df["datetime"] = df["datetime"].dt.tz_localize(None)
 df = df.set_index("datetime").sort_index()
