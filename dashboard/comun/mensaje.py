@@ -188,14 +188,16 @@ def formatear_precio(
     return f"{precio:.2f}{moneda}"
 
 def send_TG_message( texto: str):
-    TG_token = st.secrets.get("TG_token")
-    TG_chat_id_canal = st.secrets.get("TG_chat_id_canal")  
 
-    TG_url = f"https://api.telegram.org/bot{TG_token}/sendMessage"
-    data = dict(chat_id=TG_chat_id_canal, text= texto)
-    response, error = safe_request(TG_url,method="POST", params=data)
+    if st.secrets.get("TG_active"):
+        TG_token = st.secrets.get("TG_token")
+        TG_chat_id_canal = st.secrets.get("TG_chat_id_canal")  
+        TG_url = f"https://api.telegram.org/bot{TG_token}/sendMessage"
+        data = dict(chat_id=TG_chat_id_canal, text= texto)
+        return safe_request(TG_url,method="POST", params=data)
 
-    print(response, error)
+    else:
+        return None, "El envío de mensajes a Telegram no está activo. Activa 'TG_active' en secrets para habilitarlo."
 
 __all__ = [
     "render_df_proportional",

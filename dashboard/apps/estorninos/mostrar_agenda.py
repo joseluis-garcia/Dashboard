@@ -33,7 +33,6 @@ def mostrar_agenda(conn, opcion):
         "start_date": start_utc,
         "end_date": end_utc,
     }
-    print("Vamos a obtener precios para agenda")
     df_final, error = get_prices_forecast(conn, rango, 'rf')
     if error:
         return None, error

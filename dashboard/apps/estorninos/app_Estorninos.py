@@ -11,7 +11,7 @@ from dashboard.comun.grafico_ESIOS_energy import grafico_ESIOS_energy
 from dashboard.comun.grafico_prices_forecast import grafico_prices_forecast
 from dashboard.apps.estorninos.mostrar_agenda import mostrar_agenda
 from dashboard.apps.estorninos.historico_spot import load_historico_precios_spot
-from dashboard.apps.estorninos.historico_temperaturas import load_historico_temperaturas
+from dashboard.apps.estorninos.historico_temperaturas import load_historico_temperaturas, grafico_historico_temperaturas, grafico_stress_termico
 from dashboard.comun.mensaje import show_mensaje
 from dashboard.comun import sql_utilities as db
 
@@ -45,6 +45,11 @@ def header_centrado(texto):
         f"<h2 style='text-align: center;'>{texto}</h2>",
         unsafe_allow_html=True
     )
+
+# Funciones para autenticación de admin (para enviar mensajes a Telegram)
+def check_admin_password(pwd: str) -> bool:
+    print(f"Verificando contraseña de administrador: {pwd} contra {st.secrets['ADMIN_password']}")
+    return pwd == st.secrets["ADMIN_password"]
 
 # =========================
 # DEFINICION UI
@@ -84,7 +89,7 @@ st.markdown("""
 st.set_page_config(layout="wide")
 st.title("Visualización de variables ESIOS")
 
-tab_curvas, tab_agenda, tab_algoritmo, tab_precios, tab_temperaturas = st.tabs(["Curvas", "Agenda", "Algoritmo", "Precios", "Temperaturas"])
+tab_curvas, tab_agenda, tab_algoritmo, tab_precios, tab_temperaturas, tab_stress = st.tabs(["Curvas", "Agenda", "Algoritmo", "Precios", "Temperaturas","Stress térmico"])
 
 with tab_curvas:
     st.info(f"Rango de fechas: {rango['start_date']} → {rango['end_date']}")
@@ -130,14 +135,46 @@ with tab_agenda:
         st.plotly_chart(fig_agenda, width='stretch', key="agenda")
 
 with tab_algoritmo:
-    st.subheader("Algoritmo")
-    st.write("En esta página se desarrollará la lógica para el envio de mensajes a los estorninos a trave del canal de Telegram al que te puedes suscribir mediante este enlace https://t.me/+qsGht4W8dZ4yMjU8")
-    st.write("A modo de prueba el texto que escribas en este área se enviará a todos los que se hubieran suscrito al canal <Estorninos de Som> en Telegram")
-    comentario = st.text_area("Texto a enviar")
-    enviado = st.button("Enviar")
 
-if enviado:
-    send_TG_message(f"{datetime.now().strftime('%Y-%m-%d %H:%M')} - Mensaje desde App: {comentario} ")
+    # --- Inicialización ---
+    if "show_admin_login" not in st.session_state:
+        st.session_state["show_admin_login"] = False
+    if "is_admin" not in st.session_state:
+        st.session_state["is_admin"] = False
+
+    st.subheader("Algoritmo")
+    st.write("En esta página se desarrollará la lógica para el envio de mensajes a los estorninos a mediante el canal de Telegram al que te puedes suscribir siguiendo este enlace https://t.me/+qsGht4W8dZ4yMjU8")
+    st.write("A modo de prueba, si estas autorizado, el texto que escribas en este área se enviará a todos los que se hubieran suscrito al canal <Estorninos de Som> en Telegram")
+    comentario = st.text_area("Texto a enviar")
+    # --- Botón principal ---
+    if st.button("Enviar"):
+        if st.session_state["is_admin"]:
+            # Ya autenticado, ejecutar directamente
+            send_TG_message(f"{datetime.now().strftime('%Y-%m-%d %H:%M')} - Mensaje desde App: {comentario}")
+            st.success("Mensaje enviado")
+        else:
+            # Pedir autenticación
+            st.session_state["show_admin_login"] = True
+
+    # --- Form de login
+    if st.session_state["show_admin_login"] and not st.session_state["is_admin"]:
+        with st.form("admin_login_form"):
+            st.markdown("🔒 **Acceso administrador**")
+            pwd = st.text_input("Contraseña", type="password")
+            submitted = st.form_submit_button("Entrar")
+            
+            if submitted:
+                if check_admin_password(pwd):
+                    st.session_state["is_admin"] = True
+                    st.session_state["show_admin_login"] = False
+                    mensaje, error = send_TG_message(f"{datetime.now().strftime('%Y-%m-%d %H:%M')} - Mensaje desde App: {comentario}")
+                    if error:
+                        st.error(f"Error al enviar mensaje a Telegram: {error}")
+                    else:
+                        st.success("Mensaje enviado a Telegram")
+                        st.rerun()
+                else:
+                    st.error("Contraseña incorrecta")
 
 with tab_precios:
     fig_precios, ticks_mes = load_historico_precios_spot(conn, True, True)
@@ -149,10 +186,27 @@ with tab_precios:
 # #     st.subheader("Mapa de peajes y cargos histórico")
 # #     st.plotly_chart(fig_peajes, width='stretch', key="peajes")
 
+temp_matrix, error = load_historico_temperaturas(conn)
+if error:
+    st.error(f"Error al cargar temperaturas históricas: {error}")
+
 with tab_temperaturas:
-    fig_temperaturas, ticks_mes = load_historico_temperaturas(True, True)
+    fig_temperaturas = grafico_historico_temperaturas(temp_matrix, True, True)
     st.subheader("Mapa de temperaturas históricas")
     st.plotly_chart(fig_temperaturas, width='stretch', key="temperaturas")
+
+with tab_stress:
+
+    st.subheader("Mapa de stress térmico")
+    col1,col2 = st.columns(2)
+    with col1:
+        tMin = st.slider("Frio por debajo de:", -20, 30, 15)
+    with col2:
+        tMax = st.slider("Calor por encima de:", 15, 45, 28)
+
+    st.write(f"El mapa de stress térmico se calcula a partir de las temperaturas históricas, asignando a cada hora un valor con la diferencia {tMin} - tºC si t < {tMin} y tºC - {tMax} si t >= {tMax}. Las horas con temperaturas confortables entre {tMin} y {tMax} no se representan en el mapa de stress.")
+    fig_stress = grafico_stress_termico(temp_matrix, tMin, tMax)
+    st.plotly_chart(fig_stress, width='stretch', key="stress")
 
 # with tab_summary:
 #     # Crear subplots con eje Y compartido
