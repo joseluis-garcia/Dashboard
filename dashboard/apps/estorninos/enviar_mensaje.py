@@ -3,6 +3,7 @@ Este script se encarga de calcular el mensaje que se enviará a Estorninos cada 
 El envío del mensaje se realiza a través de Telegram, utilizando un bot y un canal específico para Estorninos. El mensaje se construye con datos obtenidos de ESIOS (precios de energía), OpenMeteo (previsión meteorológica) y otras fuentes relevantes.
 Los datos de TG estan en st.secrets para evitar exponerlos en el código. El mensaje se envía solo si la clave "TG_active" en secrets está activada (True).
 """
+import re
 import sys
 import tomllib
 from pathlib import Path
@@ -37,6 +38,15 @@ from dashboard.comun.get_openmeteo import get_meteo_today
 from dashboard.comun.mensaje import send_TG_message
 from dashboard.comun.date_conditions import get_estacion, horas_a_texto
 from dashboard.comun.costes_regulados import costes_regulados
+
+def escape_md(text: str) -> str:
+    '''
+    Escapa caracteres especiales de Markdown en un texto para evitar que se interpreten como formato en Telegram.
+    Args:
+        text: Texto a escapar
+        Returns: Texto escapado
+    '''
+    return re.sub(r'([_\*\[\]()~`>#+=|{}.!\-])', r'\\\1', text)
 
 def calcular_mensaje() -> str:
     '''
@@ -76,19 +86,55 @@ def calcular_mensaje() -> str:
     str_fecha = fecha.strftime("%d de %B de %Y").lstrip("0")
 
     # Aquí va la lógica para calcular el mensaje basado en los datos de ESIOS u otras fuentes
-    mensaje = f"¡Hola! Este es un mensaje para Estorninos.\nHoy es: {str_fecha}.\n"
-    mensaje += f"Estamos en {estacion} y el clima de hoy en España es:\n"
-    for _, row in df_meteo.iterrows():
-        mensaje += f"\n-> {row['ciudad']} {row['weather_icon']}  {row['weather_desc']} con temperaturas entre {row['temperature_2m_min']:.1f}°C y {row['temperature_2m_max']:.1f}°C. "
-        mensaje += f"Las horas de salida y puesta de sol serán: {row['sunrise']} y {row['sunset']} respectivamente.\n"
+    mensaje = escape_md(f"¡Hola! Este es un mensaje para Estorninos.\nHoy es: {str_fecha}.\n")
 
-    mensaje += f"Las horas con precios mas bajos (por debajo del 10% de los precios) serán: {horas_barato_str}.\n"
-    mensaje += f"Las horas con precios mas altos (por encima del 90% de los precios) serán: {horas_caro_str}.\n"
+    # mensaje += f"Estamos en {estacion} y el clima de hoy en España es:\n"
+    # for _, row in df_meteo.iterrows():
+    #     mensaje += f"\n-> {row['ciudad']} {row['weather_icon']}  {row['weather_desc']} con temperaturas entre {row['temperature_2m_min']:.1f}°C y {row['temperature_2m_max']:.1f}°C. "
+    #     mensaje += f"Las horas de salida y puesta de sol serán: {row['sunrise']} y {row['sunset']} respectivamente.\n"
+
+    # Reemplazar el bloque meteorológico del mensaje por esto:
+    mensaje += escape_md(f"Estamos en {estacion} y el clima de hoy en España es:\n")
+    mensaje += "─" * 30
+
+    for _, row in df_meteo.iterrows():
+        # mensaje += f"\n*{escape_md(row['ciudad'])}*\n"
+        # mensaje += "\n```\n"
+        # mensaje += (
+        #     f"{row['weather_icon']+'  '+row['weather_desc']:<18}"
+        #     f"\nTemperatura desde {row['temperature_2m_min']:>4.1f}°"
+        #     f" hasta {row['temperature_2m_max']:>4.1f}°"
+        #     f"\nSol 🌅{row['sunrise']:>6} "
+        #     f" 🌇{row['sunset']:>6}"
+        # )
+        # mensaje += "\n```\n"
+
+        mensaje += f"\n*{escape_md(row['ciudad'])}*\n"
+        mensaje += "`" + escape_md(f"{row['weather_icon']} {row['weather_desc']}\n") + "`"
+        mensaje += escape_md(f"🌡 {row['temperature_2m_min']:.1f}° – {row['temperature_2m_max']:.1f}°C ---")
+        mensaje += escape_md(f"🌅 {row['sunrise']}  🌇 {row['sunset']}\n")
+    mensaje += "\n"
+
+    # mensaje += f"Las horas con precios mas bajos (por debajo del 10% de los precios) serán: {horas_barato_str}.\n"
+    # mensaje += f"Las horas con precios mas altos (por encima del 90% de los precios) serán: {horas_caro_str}.\n"
+    # if not df_negativos.empty:
+    #     mensaje += f"\nLas horas con precios de excedentes negativos serán: {horas_negativo_str}.\n"
+    # else:
+    #     mensaje += f"\nNo se esperan horas con precios de excedentes negativos hoy.\n"
+
+
+    # Bloque de precios compacto
+    mensaje += f"💰 Precios electricidad hoy\n"
+    mensaje += "─" * 30 + "\n"
+    mensaje += f"🟢 Baratos   {horas_barato_str}\n"
+    mensaje += f"🔴 Caros     {horas_caro_str}\n"
     if not df_negativos.empty:
-        mensaje += f"\nLas horas con precios de excedentes negativos serán: {horas_negativo_str}.\n"
+        mensaje += f"⚡ Excedentes negativos {horas_negativo_str}\n"
     else:
-        mensaje += f"\nNo se esperan horas con precios de excedentes negativos hoy.\n"
-    mensaje += "\n¡Que tengas un buen día! 🌞"
+        mensaje += f"⚡ Sin excedentes negativos\n"
+
+    
+    mensaje += escape_md("¡Que tengas un buen día! 🌞")
 
     return mensaje
 
@@ -98,4 +144,8 @@ print(f"Se envia mensaje? {st.secrets.get('TG_active')}")
 print(mensaje)
 
 if st.secrets.get("TG_active"):
-    send_TG_message(mensaje)
+    response, error = send_TG_message(mensaje)
+    if error:
+        print(f"Error al enviar mensaje a Telegram: {error}")
+    else:
+        print("Mensaje enviado a Telegram con éxito.")

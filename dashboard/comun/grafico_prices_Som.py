@@ -9,10 +9,9 @@ import streamlit as st
 
 from dashboard.comun.get_ESIOS_data import get_ESIOS_spot
 from dashboard.comun.get_Som_data import get_prices_Som_indexada
+from dashboard.comun.date_conditions import get_cache_period
 
-@st.cache_data
 def grafico_prices_Som() -> Tuple[go.Figure, Optional[str]]:
-
     """
     Crea gráfico interactivo de precios indexados de SOM Energía.
     
@@ -42,7 +41,8 @@ def grafico_prices_Som() -> Tuple[go.Figure, Optional[str]]:
         >>>     fig.show()
     """
     # Obtenemos los precios de la web de Som Energia
-    df, error = get_prices_Som_indexada()
+
+    df, error = get_prices_Som_indexada(cache_period=get_cache_period())
     if error:
         return None, f"No se han podido obtener los precios de SOM Energía: {error}"
     

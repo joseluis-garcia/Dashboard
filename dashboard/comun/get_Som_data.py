@@ -14,12 +14,12 @@ import streamlit as st
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from dashboard.comun.date_conditions import RangoFechas
+from dashboard.comun.date_conditions import RangoFechas, get_cache_period
 from dashboard.comun.safe_request import safe_request_get
 from dashboard.comun.sql_utilities import read_sql_ts
 
 @st.cache_data
-def get_prices_Som_indexada() -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+def get_prices_Som_indexada(cache_period: Optional[str] = None) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """
     Obtiene precios de hoy y mañana desde la API de SOM Energía.
     
@@ -37,7 +37,7 @@ def get_prices_Som_indexada() -> Tuple[Optional[pd.DataFrame], Optional[str]]:
         ...     print(f"Precio hoy: {df['hoy'].mean():.3f}€/kWh")
     """
     BASE_URL = "https://api.somenergia.coop/data/indexed_prices?tariff=2.0TD&geo_zone=PENINSULA"
-
+    print(cache_period)
     response, error = safe_request_get(BASE_URL)
     if error:
         return None, error

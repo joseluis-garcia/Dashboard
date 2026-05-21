@@ -523,3 +523,17 @@ def horas_a_texto(datetimes: List[Union[datetime, pd.Timestamp]]) -> str:
         return ", ".join(partes[:-1]) + " y " + partes[-1]
     else:
         return partes[0]
+
+def get_cache_period():
+    """
+    Devuelve un identificador único por período (antes/después de las 15:00)
+    Se utiliza para invalidar las @st.cache_data a las 15:00
+    Se debe incluir como argumento en las llamadas a las funciones que cachean datos
+    usage:
+        prices = get_prices_Som_indexada(cache_period=get_cache_period())
+    """
+    now = datetime.now()
+    # Si es antes de las 15:00, el período es el día actual AM
+    # Si es después, el período es el día actual PM
+    period = "PM" if now.hour >= 15 else "AM"
+    return f"{now.date()}_{period}"

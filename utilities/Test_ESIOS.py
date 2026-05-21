@@ -6,16 +6,16 @@ import pandas as pd
 
 API_TOKEN = "d24bdfb17a69ea6568815918ee3309c3233ab055fe96340da8cd78e71ee9170e"
 
-url = "https://api.esios.ree.es/indicators/1209"  # indicador
+url = "https://api.esios.ree.es/indicators/710"  # indicador
 
 tz = pytz.timezone("Europe/Madrid")
 today = tz.localize(datetime.now().replace(minute=0, second=0, microsecond=0))
-start_date = tz.localize(datetime.now().replace(minute=0, second=0, microsecond=0)) + timedelta(days=-5)
-end_date = start_date + timedelta(days=1)
+start_date = today + timedelta(days=-1)
+end_date = today + timedelta(days=1)
     
 rango = {
-    'start_date': datetime(2022, 3, 26).strftime('%Y-%m-%dT%H:%M:%S'),
-    'end_date': datetime(2022, 3, 27).strftime('%Y-%m-%dT%H:%M:%S')
+    'start_date': start_date.strftime('%Y-%m-%dT%H:%M:%S'),
+    'end_date': end_date.strftime('%Y-%m-%dT%H:%M:%S')
 }
 
 headers = {
@@ -32,10 +32,6 @@ PARAMS = {
     #"time_trunc" : "hour"
 }
 
-rango = {
-    'start_date': datetime(2022, 5, 4).strftime('%Y-%m-%dT%H:%M:%S'),
-    'end_date': datetime(2022, 5, 6).strftime('%Y-%m-%dT%H:%M:%S')
-}
 print(rango)
 
 PARAMS = {
@@ -46,7 +42,7 @@ PARAMS = {
 print("PARAMS:", PARAMS)
 
 r = requests.get(url, headers=headers, params=PARAMS).json()
-print("Devuelto request:", r)
+#print("Devuelto request:", r)
 # print(r["indicator"]["values"]) #[0].keys())
 # print(json.dumps(r, indent=1, ensure_ascii=False))
 data = r["indicator"]["values"]

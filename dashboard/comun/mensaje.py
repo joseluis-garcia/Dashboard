@@ -8,6 +8,7 @@ Proporciona funciones para:
 """
 
 from typing import Optional, List, Dict, Any
+import requests
 import streamlit as st
 import pandas as pd
 from dashboard.comun.safe_request import safe_request
@@ -191,11 +192,13 @@ def send_TG_message( texto: str):
 
     if st.secrets.get("TG_active"):
         TG_token = st.secrets.get("TG_token")
+        #Cambiar en secrets el chat_id por el del canal al que quieras enviar el mensaje. Para obtenerlo, envíale un mensaje a tu bot y luego ejecuta el código de utilities/get_TG_ID.py
         TG_chat_id_canal = st.secrets.get("TG_chat_id_canal")  
         TG_url = f"https://api.telegram.org/bot{TG_token}/sendMessage"
-        data = dict(chat_id=TG_chat_id_canal, text= texto)
+        data = dict(chat_id=TG_chat_id_canal, text= texto, parse_mode="MarkdownV2")
         return safe_request(TG_url,method="POST", params=data)
 
+    
     else:
         return None, "El envío de mensajes a Telegram no está activo. Activa 'TG_active' en secrets para habilitarlo."
 
