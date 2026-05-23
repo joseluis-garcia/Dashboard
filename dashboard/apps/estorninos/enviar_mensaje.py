@@ -95,7 +95,7 @@ def calcular_mensaje() -> str:
 
     # Reemplazar el bloque meteorológico del mensaje por esto:
     mensaje += escape_md(f"Estamos en {estacion} y el clima de hoy en España es:\n")
-    mensaje += "─" * 30
+    mensaje += "─" * 20
 
     for _, row in df_meteo.iterrows():
         # mensaje += f"\n*{escape_md(row['ciudad'])}*\n"
@@ -111,7 +111,7 @@ def calcular_mensaje() -> str:
 
         mensaje += f"\n*{escape_md(row['ciudad'])}*\n"
         mensaje += "`" + escape_md(f"{row['weather_icon']} {row['weather_desc']}\n") + "`"
-        mensaje += escape_md(f"🌡 {row['temperature_2m_min']:.1f}° – {row['temperature_2m_max']:.1f}°C ---")
+        mensaje += escape_md(f"🌡 {row['temperature_2m_min']:.1f}° – {row['temperature_2m_max']:.1f}°C\n")
         mensaje += escape_md(f"🌅 {row['sunrise']}  🌇 {row['sunset']}\n")
     mensaje += "\n"
 
@@ -124,14 +124,14 @@ def calcular_mensaje() -> str:
 
 
     # Bloque de precios compacto
-    mensaje += f"💰 Precios electricidad hoy\n"
-    mensaje += "─" * 30 + "\n"
-    mensaje += f"🟢 Baratos   {horas_barato_str}\n"
-    mensaje += f"🔴 Caros     {horas_caro_str}\n"
+    mensaje += escape_md(f"💰 Precios electricidad hoy\n")
+    mensaje += "─" * 20 + "\n"
+    mensaje += escape_md(f"🟢 Baratos -> {horas_barato_str}\n")
+    mensaje += escape_md(f"🔴 Caros -> {horas_caro_str}\n")
     if not df_negativos.empty:
-        mensaje += f"⚡ Excedentes negativos {horas_negativo_str}\n"
+        mensaje += escape_md(f"⚡ Excedentes negativos -> {horas_negativo_str}\n")
     else:
-        mensaje += f"⚡ Sin excedentes negativos\n"
+        mensaje += escape_md(f"⚡ Sin excedentes negativos\n")
 
     
     mensaje += escape_md("¡Que tengas un buen día! 🌞")
