@@ -9,6 +9,10 @@ Proporciona funciones
 - getPowerMeasurements: Obtiene las mediciones de potencia para cada canal del medidor registrado en WIBEE en un rango de fechas especificado
 - update_WIBEE_data: Actualiza la tabla WIBEE con los datos de producción de energía desde la última fecha registrada hasta la fecha actual
 """
+from dashboard.comun.load_secrets import load_secrets
+load_secrets(levels_up=3)  # Carga secrets y parchea st.secrets antes de cualquier import
+
+import streamlit as st 
 import sqlite3
 from typing import Tuple, Optional, Dict, Any
 import streamlit as st
@@ -18,8 +22,7 @@ from datetime import datetime, timedelta, timezone, time
 import pytz
 import json
 from dashboard.comun.date_conditions import RangoFechas
-from dashboard.comun.sql_utilities import read_sql_ts
-from dashboard.comun.sql_utilities import read_sql_ts
+from dashboard.comun.sql_utilities import init_db, read_sql_ts
 
 import dashboard.apps.config as TCB
 
@@ -193,7 +196,15 @@ def get_WIBEE_data(rango: RangoFechas, time_unit: Optional[str] = "hours")-> Tup
     except Exception as e:
         return None, f"Error al obtener datos de WIBEE: {e}"
 
-def update_WIBEE_history(conn: sqlite3.Connection) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+def update_WIBEE_history(conn: Optional[sqlite3.Connection] = None) -> Tuple[
+        Optional[pd.DataFrame], 
+        Optional[str]]:
+
+    if conn is None:
+        # Connect to SQLite database
+        conn, error = init_db()
+        if error:
+            return None, f"Error al conectar a la base de datos: {error}"
 
     try:
         #Previous data recorded until
@@ -217,13 +228,12 @@ def update_WIBEE_history(conn: sqlite3.Connection) -> Tuple[Optional[pd.DataFram
             return None, f"update_WIBEE_history: {error}"
         
 
-        result.index = result.index.tz_localize(None)
-
+        result['datetime'] = result.index.tz_localize(None)
         if error:
             return None, error
         
-        result.to_sql('WIBEE', conn, if_exists='append', index=True, index_label='datetime' )
-        return f"Insertadas {len(result)} en WIBEE", None
+        result.to_sql('WIBEE', conn, if_exists='append', index=False)
+        return result, None
 
     except Exception as e:
         return None,f"Error getting WIBEE data:{str(e)}"
@@ -282,5 +292,47 @@ def get_WIBEE_today_history(conn: sqlite3.Connection) -> Tuple[Optional[pd.DataF
     df = df[mask].groupby(df.index[mask].hour).agg({"solar_Wh": "mean"})
 
     return df, None
+
+def get_WIBEE_data_from_measurements(conn: sqlite3.Connection, rango: Optional[RangoFechas] = None) -> pd.DataFrame:
+    """
+    Carga datos historicos de WIBEE.
+    Debe devolver columnas: ['datetime', 'general_Wh', 'solar_Wh', 'extra_Wh', 'extra', 'power_Wp']
+        
+    Args:
+        rango: Diccionario con 'start_date' y 'end_date'
+        
+    Returns:
+        Tupla (dataframe, error) donde:
+         
+        - dataframe: Index('datetime'), datetime, general_Wh, solar_Wh, extra_Wh, extra, power_Wp   ]
+        - error: None si es exitoso, mensaje de error si falla
+    """
+    try:
+        if rango is None:
+             query = "SELECT datetime, general_Wh, solar_Wh, extra_Wh, extra, power_Wp from WIBEE"
+        else:
+            query = f'SELECT datetime, general_Wh, solar_Wh, extra_Wh, extra from WIBEE where datetime >= "{rango["start_date"]}" and datetime <= "{rango["end_date"]}" order by datetime'
+
+        df, error = read_sql_ts(query, conn)
+        if error:
+            return None, f"Error al cargar datos de WIBEE: {error}"
+
+        print("Filas con problemas en WIBEE:",df[df.isna().any(axis=1)])
+        df = df.dropna(subset=['general_Wh', 'solar_Wh', 'extra_Wh'])
+        return df, None
     
-__all__ = ["update_WIBEE_history", "get_WIBEE_today", "get_WIBEE_today_history"]
+    except Exception as e:
+        return None, f"Error al cargar datos de WIBEE: {e}"
+    
+
+if __name__ == "__main__":
+    df, error = update_WIBEE_history()
+
+    if error is not None:
+        print(f"Error: {error}")
+    if df is not None:
+        desde = df['datetime'].min().strftime("%Y-%m-%d %H:%M")
+        hasta = df['datetime'].max().strftime("%Y-%m-%d %H:%M")
+        print(f"{len(df)} filas insertadas en WIBEE desde {desde} hasta {hasta}")
+
+__all__ = ["update_WIBEE_history", "get_WIBEE_today", "get_WIBEE_today_history", "get_WIBEE_data_from_measurements"]

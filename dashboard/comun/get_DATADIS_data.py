@@ -1,10 +1,16 @@
-import streamlit as st
-
-import pandas as pd
 import sqlite3
+from typing import Tuple, Optional, Dict, Any
+import pandas as pd
 import requests
 from datetime import datetime, timedelta
 import pytz
+
+from dashboard.comun.date_conditions import RangoFechas
+from dashboard.comun.load_secrets import load_secrets
+from dashboard.comun.sql_utilities import init_db, read_sql_ts
+load_secrets(levels_up=3)  # Carga secrets y parchea st.secrets antes de cualquier import
+
+import streamlit as st 
 
 cups =""
 pointType = ""
@@ -43,7 +49,7 @@ def getMeters(token):
         response.raise_for_status() 
         json = response.json()
 
-        print (json)
+        print ("GetMeters json",json)
 
         cups = json["supplies"][0]["cups"]
         distributorCode = json["supplies"][0]["distributorCode"]
@@ -69,7 +75,7 @@ def getPowerMeasurements(token, startDate, endDate):
     url = url + "&measurementType=0"
     url = url + "&pointType=" + str(pointType)
 
-    print (url )
+    print ("GetPowerMeasurements url",url)
     headers = {
         "Authorization": "Bearer " + token,
         "Content-Type": "application/json",
@@ -78,7 +84,7 @@ def getPowerMeasurements(token, startDate, endDate):
 
     try:
         response = requests.get(url, headers=headers)
-        print(response)
+        #print("GetPowerMeasurements response", response.json())
         response.raise_for_status() 
         return response.json(), None
     
@@ -88,36 +94,53 @@ def getPowerMeasurements(token, startDate, endDate):
         message += f"\nResponse: {response.text}"  # Debug server response
         return None, message
 
-# Function to convert time format. Hour 24:00 has to be replced by next day 00:00
-def format_utc_time(row):
-    local_datetime_str = row['date'] + ' ' + row['time']
-    if (row['time'] == '24:00'):
-        date_obj = datetime.strptime(row['date'], '%Y/%m/%d') + timedelta(days=1)
-        local_datetime_str = date_obj.strftime("%Y/%m/%d") + ' 00:00'
+def get_DATADIS_data_from_measurements(conn: sqlite3.Connection, rango: Optional[RangoFechas] = None) -> pd.DataFrame:
+    """
+    Carga datos historicos de DATADIS para entrenar modelos desde SQL.
+    Debe devolver columnas: ['datetime', 'consumption_Wh', 'surplus_Wh']
+        
+    Args:
+        rango: Diccionario con 'start_date' y 'end_date'
+        
+    Returns:
+        Tupla (dataframe, error) donde:
+         
+        - dataframe: Index(['datetime', 'consumption_Wh', 'surplus_Wh']
+        - error: None si es exitoso, mensaje de error si falla
+    """
+    try:
+        if rango is None:
+            query = 'select datetime, consumption_Wh, surplus_Wh from DATADIS where datetime >= ? and datetime <= ? order by datetime'
+        else:
+            query = f'select datetime, consumption_Wh, surplus_Wh from DATADIS where datetime >= {rango["start_date"]} and datetime <= {rango["end_date"]} order by datetime'
 
-    local_datetime = datetime.strptime(local_datetime_str, "%Y/%m/%d %H:%M")  
-    local_timezone = pytz.timezone('Europe/Madrid')
+        df = read_sql_ts(query, conn)
 
-    # Localize the datetime object (add the local timezone)
-    localized_datetime = local_timezone.localize(local_datetime)
+        print("Filas con problemas en DATADIS:",df[df.isna().any(axis=1)])
+        df = df.dropna(subset=['consumption_Wh', 'surplus_Wh'])
+        return df, None
+    
+    except Exception as e:
+        return None, f"Error al cargar datos de ESIOS para previsión precios: {e}"
+    
+def update_DATADIS_history(conn: Optional[sqlite3.Connection] = None) -> Tuple[
+        Optional[pd.DataFrame], 
+        Optional[str]]:
 
-    # Convert the localized datetime to UTC
-    utc_datetime = localized_datetime.astimezone(pytz.utc)
-    return utc_datetime.replace(tzinfo=None)
- 
-def upodate_DATADIS_data(conn):
-
-    # Load the table into a Pandas DataFrame
+    if conn is None:
+        # Connect to SQLite database
+        conn, error = init_db()
+        if error:
+            return None, f"Error al conectar a la base de datos: {error}"
 
     #Previous data recorded until
-    df = pd.read_sql_query("SELECT MAX(datetime) as maxDate FROM DATADIS_v", conn, parse_dates=["maxDate"])
+    df = pd.read_sql_query("SELECT MAX(datetime) as maxDate FROM DATADIS", conn, parse_dates=["maxDate"])
     df["maxDate"] = pd.to_datetime(df["maxDate"])
     maxDate = df["maxDate"].iloc[0]
 
     year = maxDate.year
     month = maxDate.strftime("%m")
     startDate = f"{year}/{month}"
-    print (startDate )
 
     year = int(datetime.today().year)
     month = int(datetime.today().strftime("%m")) - 1
@@ -127,7 +150,7 @@ def upodate_DATADIS_data(conn):
     month = f"{month:02d}"
 
     endDate = f"{year}/{month}"
-    print(endDate)
+    print("Getting data from DATADIS: " + startDate + " to " + endDate)
 
     email = st.secrets.get("DATADIS_email")
     password = st.secrets.get("DATADIS_password")
@@ -148,47 +171,48 @@ def upodate_DATADIS_data(conn):
         print(error)
         return None, error
 
-
     df=pd.json_normalize(measurements,'timeCurve')
     print("Obtenido de DATADIS\n", df.head())
 
     local_tz = pytz.timezone("Europe/Madrid")
 
     # 1. Combinar date + time en un string y parsear
-    df["datetime"] = pd.to_datetime(df["date"] + " " + df["time"], format="%Y/%m/%d %H:%M")
+    df["datetime"] = pd.to_datetime(df["date"] + " " + df["time"], format="%Y/%m/%d %H:%M") - pd.Timedelta(hours=1)  # Ajuste para que el timestamp refleje las horas 0-23 en lugar de 1-24 como vienen
 
     # 2. Localizar en Europe/Madrid (gestiona DST automáticamente)
-    df["datetime"] = df["datetime"].apply(lambda dt: local_tz.localize(dt))
+    #df["datetime"] = df["datetime"].apply(lambda dt: local_tz.localize(dt))
+    df["datetime"] = (
+        df["datetime"]
+        .dt.tz_localize("Europe/Madrid", ambiguous='infer')  # gestionar DST automáticamente
+        .dt.tz_convert("UTC")
+    )
 
-    # 3. Convertir a UTC
-    df["datetime"] = df["datetime"].dt.tz_convert("UTC")
-
-    # 4. Quitar el tzinfo y formatear como string para SQLite (sin +00:00)
-    df["datetime"] = df["datetime"].dt.tz_localize(None)
-
-
-    #df["date"] = df.apply(format_utc_time, axis=1)
+    #Conierte unidades a kWh
     df["consumption_Wh"] = df["consumptionKWh"] * 1000
     df["surplus_Wh"] = df["surplusEnergyKWh"] * 1000
     df.drop(columns=["time","cups","consumptionKWh","obtainMethod","surplusEnergyKWh","generationEnergyKWh","selfConsumptionEnergyKWh"], inplace=True)
 
-        #if df.isna().any().any():
-    if (True):
-        # print( "Abort -> dataset with NANs")
-        # print(df[df.isna().any(axis=1)])
-    #else:
-        df = df[(df["datetime"] > maxDate) & (df["surplus_Wh"].notna())]
-        df = df[df['datetime'] > maxDate]
-        print("A insertar en SQLite\n", df.head())
-        # Insert data into the table
-        # df.to_sql('DATADIS_v', conn,if_exists="append", index=False)
 
-        # # Commit changes and close connection
-        # conn.commit()
-        # conn.close()
+    df = df[(df["datetime"] > maxDate) & (df["surplus_Wh"].notna())]
 
-        print("Data successfully inserted into SQLite from DATADIS!")
-        return "Data successfully inserted into SQLite from DATADIS!", None
-    else:
-        print("Some error getting values from DATADIS") 
-        return None, "Some error getting values from DATADIS" 
+    print("A insertar en SQLite\n", df.head(), df.tail())
+    # Insert data into the table
+    df.to_sql('DATADIS', conn,if_exists="append", index=False)
+
+    return df, None
+
+
+if __name__ == "__main__":
+    df, error = update_DATADIS_history()
+
+    if error is not None:
+        print(f"Error: {error}")
+    if df is not None:
+        desde = df['datetime'].min() #.strftime("%Y-%m-%d %H:%M")
+        hasta = df['datetime'].max() #.strftime("%Y-%m-%d %H:%M")
+        print(f"{len(df)} filas insertadas en DATADIS desde {desde} hasta {hasta}")
+
+__all__ = [
+    "update_DATADIS_history", 
+    "getPowerMeasurements",
+    "get_DATADIS_data_from_measurements"]

@@ -1,17 +1,28 @@
-
 from pathlib import Path
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from dashboard.comun.date_conditions import getSunDataRange
-from dashboard.comun.sql_utilities import read_sql_ts
 from typing import Tuple, Optional
 from datetime import date
+import sqlite3
+
+from dashboard.comun.date_conditions import getSunDataRange
+from dashboard.comun.sql_utilities import read_sql_ts
+import dashboard.apps.config as TCB
 
 @st.cache_data
-def load_historico_temperaturas(_conn):
+#se usa _conn para indicar que es un argumento que no se tiene que usar para el cache, ya que no es hashable
+def load_historico_temperaturas(_conn: sqlite3.Connection) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+    """
+    Carga datos históricos de temperaturas y prepara una matriz para heatmap.
+    Args:
+        _conn: Conexión a la base de datos SQLite
+    Returns:
+        temp_matrix: DataFrame con temperaturas pivotadas por fecha y hora en hora local Europe/Madrid
+        error: None si es exitoso, mensaje de error si falla
+    """
 
     df_temp, error = read_sql_ts(
         "SELECT datetime, temperature FROM METEO",
@@ -20,30 +31,14 @@ def load_historico_temperaturas(_conn):
     if error:
         return None, f"No se han podido cargar las temperaturas históricas: {error}"
 
-# # Ruta al CSV dentro de comun/
-#     current_file = Path(__file__)
-#     dashboard_dir = current_file.parents[2]  # Sube a dashboard/
-#     csv_path = dashboard_dir / "data" / "temperaturas.csv"
-
-# #==========================
-# # Datos historicos de temperaturas para heatmap
-# #==========================
-#     df_temp = pd.read_csv(
-#         csv_path,
-#         sep=";", 
-#         encoding="utf-8-sig",
-#         parse_dates=["datetime"],
-#         dayfirst=True,               # importante para formato europeo
-#         date_format="%d/%m/%Y %H:%M"
-#     )
-#    df_temp["datetime"] = pd.to_datetime(df_temp["datetime"])
+    # Convertir el índice a hora local y extraer fecha y hora para el heatmap
     df_temp.index = df_temp.index.tz_convert("Europe/Madrid")
     df_temp["date"] = df_temp.index.date
     df_temp["hour"] = df_temp.index.hour
     df_temp = df_temp.drop_duplicates(subset=["date", "hour"], keep="last")
-#==========================
-# Prepara datos temperatura para heatmap
-#==========================
+    print(f"Temperaturas históricas cargadas desde: {df_temp.index[0]} hasta {df_temp.index[-1]}, {len(df_temp)} registros")
+
+    # Prepara datos temperatura para heatmap
     temp_matrix = df_temp.pivot(
         index="date",
         columns="hour",
@@ -55,25 +50,21 @@ def load_historico_temperaturas(_conn):
     return temp_matrix, None
 
 def add_estaciones(fig, fechas):
-    #===========================
     # Cambios de estación sin año
-    #===========================
     cambios_estacion = [
         (3, 20),   # primavera
         (6, 21),   # verano
         (9, 22),   # otoño
         (12, 21)   # invierno
     ]
-    #===========================
+
     # Posiciones en el eje Y de los cambios de estación
-    #===========================
     fechas_cambio = []
     for mes, dia in cambios_estacion:
         coincidencias = [f for f in fechas if f.month == mes and f.day == dia]
         fechas_cambio.extend(coincidencias)
-    #===========================
+
     # Añadir líneas horizontales en los cambios de estación
-    #===========================
         for f in fechas_cambio:
             fig.add_hline(
                 y=f,
@@ -83,16 +74,10 @@ def add_estaciones(fig, fechas):
             )
 
 def add_efemerides(fig, fechas):
-# Estas corrdenadas se utilizan para graficar las salidas y puestas del sol en el heatmap de temperaturas
-#
-    PUERTA_SOL = dict(lat=40.4169, lon=-3.7033)
-#===========================
-# Datos de salida y puesta del sol para superponer en el heatmap
-#===========================
-    df_sun = getSunDataRange(PUERTA_SOL,date(2024, 1, 1), date(2025, 12, 31), 15, tz_local="UTC")
-#==========================
-# PUNTOS DE SALIDA DEL SOL
-#==========================
+    # Datos de salida y puesta del sol para superponer en el heatmap
+    df_sun = getSunDataRange(TCB.PUERTA_SOL,date(2024, 1, 1), date(2025, 12, 31), 15, tz_local="UTC")
+
+    # PUNTOS DE SALIDA DEL SOL
     fig.add_trace(go.Scatter(
         x=df_sun["sunrise_hour"],
         y=df_sun["date"],
@@ -100,9 +85,8 @@ def add_efemerides(fig, fechas):
         line=dict(color="orange", width=2), 
         name="Salida del sol"
     )) 
-#==========================
-# PUNTOS DE PUESTA DEL SOL
-#==========================
+
+    # PUNTOS DE PUESTA DEL SOL
     fig.add_trace(go.Scatter(
         x=df_sun["sunset_hour"], 
         y=df_sun["date"], 
@@ -112,13 +96,18 @@ def add_efemerides(fig, fechas):
     ))
 
 def grafico_historico_temperaturas(temp_matrix, estaciones=True, efemerides=True):
-    print("TTTTT", type(temp_matrix.index))
-    #print(temp_matrix.index.dtype)
+    """
+    Genera un heatmap de temperaturas históricas con opciones para marcar cambios de estación y efemérides.
+    Args:
+        temp_matrix: DataFrame con temperaturas pivotadas por fecha y hora
+        estaciones: Si True, añade líneas para cambios de estación
+        efemerides: Si True, añade líneas para salida y puesta del sol
+    Returns:
+        fig_temperaturas: Figura de Plotly con el heatmap de temperaturas
+    """
     fechas = temp_matrix.index.sort_values().unique()
     ticks_mes = [f for f in fechas if f.day == 1]
-#===========================
-# Gráfico de heatmap de temperaturas con Plotly
-#===========================
+
     fig_temperaturas = go.Figure(
         data=go.Heatmap(
             z=temp_matrix.values,
@@ -158,10 +147,23 @@ def grafico_historico_temperaturas(temp_matrix, estaciones=True, efemerides=True
     return fig_temperaturas
 
 def grafico_stress_termico(temp_matrix, tFrio=15, tCalor=28):
-#==========================
-# Grafico de strees termico frío y calor superpuestos
+    """
+    Genera un heatmap de stress térmico combinando frío y calor, con tooltips detallados.
+    Cada dia hora se representa con un color que indica si fue frío (azul), confortable (blanco) o caluroso (rojo), y el tooltip muestra la temperatura exacta y el nivel de stress térmico.
+    El valor de stress térmico se calcula como la diferencia entre la temperatura y el umbral correspondiente (tFrio o tCalor), y se muestra en el tooltip para entender cuánto se aleja la temperatura de la zona confortable.
+
+    Args:
+        temp_matrix: DataFrame con temperaturas pivotadas por fecha y hora
+        tFrio: Temperatura umbral para considerar frío (°C)
+        tCalor: Temperatura umbral para considerar calor (°C)
+
+    Returns:
+        fig_stress: Figura de Plotly con el heatmap de stress térmico
+    """
+
     fechas = temp_matrix.index.sort_values().unique()
     ticks_mes = [f for f in fechas if f.day == 1]
+
     # Calcula matriz de "stress" térmico
     def calc_stress(t):
         if pd.isna(t):
@@ -185,9 +187,9 @@ def grafico_stress_termico(temp_matrix, tFrio=15, tCalor=28):
         if pd.isna(t):
             return ""
         if t <= tFrio:
-            return f"❄️ Stress frío: {tFrio - t:.1f}°C"
+            return f"Temp: {t:.1f}°C<br>❄️ Stress frío: {tFrio - t:.1f}°C"
         elif t >= tCalor:
-            return f"🌡️ Stress calor: {t - tCalor:.1f}°C"
+            return f"Temp: {t:.1f}°C<br>🌡️ Stress calor: {t - tCalor:.1f}°C"
         return ""
 
     stress_text_matrix = temp_matrix.map(stress_text)
@@ -213,14 +215,13 @@ def grafico_stress_termico(temp_matrix, tFrio=15, tCalor=28):
         colorscale=colorscale,
         zmin=zmin,
         zmax=zmax,
-        #zmid=0,  # centra la escala en 0 → azul=frío, rojo=calor
         colorbar=dict(title="Stress térmico (°C)"),
         hovertemplate="Fecha: %{y}<br>Hora: %{x}h<br>%{text}<extra></extra>",
     ))
 
     fig_stress.update_yaxes(tickvals=ticks_mes,
                         tickmode="array",
-                        ticktext=[d.strftime("%Y-%m-%d") for d in ticks_mes])
+                        ticktext=[d.strftime("%Y-%m") for d in ticks_mes])
     fig_stress.update_xaxes(tickmode="linear", tick0=0, dtick=1)
     fig_stress.update_layout(
         height=900,
@@ -237,29 +238,3 @@ def grafico_stress_termico(temp_matrix, tFrio=15, tCalor=28):
     )
 
     return fig_stress
-
-# Define la temperatura umbral para considerar un día como frío y generar matriz de días fríos para superponer en el heatmap
-#==========================
-# umbral = st.number_input("Umbral de temperatura", value=5.0)
-# df_temp["is_cold"] = df_temp["temperatura"] < umbral
-# cold_matrix = df_temp.pivot_table(
-#     index="date",
-#     columns="hour",
-#     values="is_cold",
-#     aggfunc="max"   # si hay varios registros por hora, basta con que uno sea frío
-# )
-# cold_x = cold_matrix.columns.astype(int)
-# cold_y = pd.to_datetime(cold_matrix.index).sort_values().unique()
-# cold_z = cold_matrix.fillna(0).astype(int).values
-
-#cold_z = cold_matrix.astype(int).values
-# cold_x = pd.to_datetime(cold_matrix.columns)
-# cold_y = cold_matrix.index.astype(int)
-# cold_matrix = df_temp.pivot(
-#     index="date",
-#     columns="hour",
-#     values="temperatura",
-# )
-# cold_matrix = cold_matrix.fillna(0)
-# cold_matrix = cold_matrix.sort_index()  # Asegura orden por fecha
-# cold_matrix.index = pd.to_datetime(cold_matrix.index)

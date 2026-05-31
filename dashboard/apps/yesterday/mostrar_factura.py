@@ -1,12 +1,13 @@
 import pandas as pd
 import calendar
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import pytz
 
 from dashboard.comun.date_conditions import periodo_2_0TD
+from dashboard.comun.get_DATADIS_data import get_DATADIS_data_from_measurements
+from dashboard.comun.get_WIBEE_data import get_WIBEE_data_from_measurements
 from dashboard.comun.sql_utilities import read_sql_ts
-from dashboard.comun.get_ESIOS_data import get_ESIOS_spot
 
 # # List of months
 # months = [
@@ -22,7 +23,6 @@ impuesto_electricidad = 5.11269
 SOMCorrection = 0.02  #Subida del precio que da la web de SOM
 cteBonoSocial = 0.012742
 precio_excedente = 0.015
-source = 'WIBEE'
 
 def compute_values(x):
     if (x > 0):
@@ -47,26 +47,30 @@ def mostrar_factura(conn, month, year, source):
     if month == 12:
         end_local = tz.localize(datetime(year + 1, 1, 1))
     else:
-        end_local = tz.localize(datetime(year, month + 1, 1))
-    print("LOCAL",start_local, end_local)
+        end_local = tz.localize(datetime(year, month + 1, 1)) + timedelta(hours=-1)  # último instante del mes actual
+
     start_utc = start_local.astimezone(pytz.utc).strftime("%Y-%m-%d %H:%M:%S")
     end_utc   = end_local.astimezone(pytz.utc).strftime("%Y-%m-%d %H:%M:%S")
 
-    print("UTC", start_utc,end_utc)
+    print(f"Rango local:{source} {start_local} - {end_local}")
+
     try:
         if (source == 'DATADIS'):
-            query = f"SELECT datetime, consumption_Wh as consumo, surplus_Wh as excedente from DATADIS_v where datetime >= ? and datetime < ?"
-            energy = pd.read_sql(query, conn, params=(start_utc, end_utc), index_col="datetime", parse_dates="datetime")
-
+            energy, error = get_DATADIS_data_from_measurements(conn, {'start_date': start_utc, 'end_date': end_utc})
+            energy['consumo'] = energy['consumption_Wh'] / 1000
+            energy['excedente'] = energy['surplus_Wh'] / 1000
         else:
-            query = "SELECT datetime, general_Wh / 1000. as general_Wh from WIBEE where datetime >= ? and datetime < ?"
-            energy = pd.read_sql(query, conn, params=(start_utc, end_utc), index_col="datetime", parse_dates="datetime")
+            energy, error = get_WIBEE_data_from_measurements(conn, {'start_date': start_utc, 'end_date': end_utc})
+            energy['general_Wh'] = energy['general_Wh'] / 1000
             energy[["consumo", "excedente"]] = energy["general_Wh"].apply(compute_values)
 
-        energy["local_time"] = energy.index.tz_localize("UTC").tz_convert(tz)
+        if error:
+            raise ValueError(f"Error al cargar datos de {source}: {error}")
+        
+        energy["local_time"] = energy.index.tz_convert(tz)
         energy['tarifa'] = energy["local_time"].apply(periodo_2_0TD)
         if energy.empty:
-            raise ValueError("The Source DataFrame is empty!")
+            raise ValueError(f"{source} DataFrame is empty!")
 
     # Buscamos los precios
         if year <= 2025:
@@ -74,21 +78,41 @@ def mostrar_factura(conn, month, year, source):
         else:
             tabla = "SOM_precio_indexada"
 
-        query = f"SELECT * from {tabla} where datetime >= ? and datetime < ?"
-        prices_Som =  pd.read_sql(query, conn, params=(start_utc, end_utc), index_col="datetime", parse_dates="datetime")
+        query = f"SELECT * from {tabla} where datetime >= '{start_utc}' and datetime <= '{end_utc}'"
+        print(f"Ejecutando query de precios SOM: {query}")
+        prices_Som, error =  read_sql_ts(query, conn)
+        if error:
+            raise ValueError(f"Error al cargar datos de precios SOM: {error}")
+        
         if prices_Som.empty:
             raise ValueError("The Som Prices DataFrame is empty!")
         
+        print("Datos de precios SOM:\n", tabla, prices_Som.head())
+
         col = '"Mercado SPOT"'
-        query = f"SELECT datetime, {col} from  ESIOS_data where datetime >= ? and datetime < ?"
-        prices_SPOT = pd.read_sql(query, conn, params=(start_utc, end_utc), index_col="datetime", parse_dates='datetime')
+        if year <= 2024:
+            query = f"SELECT datetime, {col} from  ESIOS_price where  datetime >= '{start_utc}' and datetime <= '{end_utc}'"
+        else:
+            query = f"SELECT datetime, {col} from  ESIOS_data where datetime >= '{start_utc}' and datetime <= '{end_utc}'"
+        prices_SPOT, error = read_sql_ts(query, conn)
+        if error:
+            raise ValueError(f"Error al cargar datos de precios SPOT: {error}")
 
         if prices_SPOT.empty:
             raise ValueError("The SPOT Prices DataFrame is empty!")
-        prices_SPOT['Mercado SPOT'] = prices_SPOT['Mercado SPOT'] / 1000   
+        
+        print("Datos de precios SPOT:\n", query, prices_SPOT.head())
+
+        #El precio de los excedentes de SPOT viene €/MWh, lo pasamos a €/kWh
+        prices_SPOT['Mercado SPOT'] = prices_SPOT['Mercado SPOT'] / 1000
+
+        #Estas tarifas son fijas pero deberiamos sacarlas del API terifas de Som   
         prices_20TD = {'P1':0.229,'P2':0.153,'P3':0.125, 'Excedente':0.03}
+
         df_cost = energy.join([prices_Som, prices_SPOT], how='inner')
-               
+
+        print("Costes1", df_cost)
+
         def calcular_coste(row):
             consumo = row['consumo']
             excedente = row['excedente']
@@ -108,19 +132,12 @@ def mostrar_factura(conn, month, year, source):
                     'compensacion_20TD': 0
                 })
             
+        print("Costes", df_cost.head())
+            
         df_cost[['cargo', 'cargo_20TD','compensacion','compensacion_20TD']] = df_cost.apply(calcular_coste, axis=1)
-        # Separate date column and sort the rest numerically
-        # non_date_cols = [col for col in df_cost if col != "datetime"]  # Exclude "date"
-        # sorted_cols = ["datetime"] + sorted(non_date_cols, key=int) 
-        # df_cost=df_cost[sorted_cols]
-
-        # Show the result
-        #df_cost["costDay"] = df_cost.drop(columns="datetime").sum(axis=1)
-
-        # Group by month and sum values
-        # df_monthly = df_cost.groupby(df_cost['datetime'].dt.to_period('M'))['costDay'].sum().reset_index()
-        # df_monthly['datetime'] = df_monthly['datetime'].astype(str)
         df_monthly = df_cost
+
+        print("Monthly costs:", df_monthly.head())
 
         euro_coste = df_monthly['cargo'].sum()
         euro_coste_20TD = df_monthly['cargo_20TD'].sum()

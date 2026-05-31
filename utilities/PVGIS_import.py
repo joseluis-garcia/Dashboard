@@ -54,7 +54,7 @@ try:
     conn.commit()
     conn.close()
 
-    print("Data successfully inserted into SQLite PVGIS_v from PVGIS!")
+    print("Data successfully inserted into SQLite PVGIS from PVGIS!")
 
 except Exception as err:
     print(f"Error from PVGIS import {err=}, {type(err)=}")

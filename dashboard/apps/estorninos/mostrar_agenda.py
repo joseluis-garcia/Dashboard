@@ -37,7 +37,7 @@ def mostrar_agenda(conn, opcion):
     if error:
         return None, error
 
-    df_final.index = df_final.index.tz_convert(tz)
+    df_final.index = df_final.index.tz_convert("Europe/Madrid")
     df_final["Renovable_pct"] = df_final['Renovable'] / df_final['Demanda real'] * 100
 
     min_r = df_final["Renovable_pct"].min()

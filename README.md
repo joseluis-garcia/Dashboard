@@ -285,7 +285,7 @@ Para reportar bugs o sugerencias:
 
 - Abre un issue en GitHub
 - Discussiones: GitHub Discussions
-- Email: tu.email@example.com
+- Email: joseluis@garciagruben.org
 
 ## 🙏 Agradecimientos
 

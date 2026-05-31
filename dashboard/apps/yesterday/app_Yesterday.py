@@ -5,9 +5,8 @@ from datetime import datetime
 
 from dashboard.apps.yesterday.analysis_energy_spot_correlation import grafico_prediccion_energia
 from dashboard.apps.yesterday.analysis_power_weather_correlation import grafico_prediccion_simple
-from dashboard.comun.get_DATADIS_data import upodate_DATADIS_data
-import dashboard.comun.sql_utilities as db
 
+import dashboard.comun.sql_utilities as db
 
 from dashboard.comun.mensaje import render_df_proportional
 from dashboard.apps.yesterday.energia_mes import get_energia_mes, grafico_energia_mes
@@ -20,6 +19,8 @@ from dashboard.comun.get_openmeteo import update_openmeteo_history
 from dashboard.comun.get_Som_data import update_Som_history
 from dashboard.comun.get_ESIOS_data import update_ESIOS_history
 from dashboard.comun.get_WIBEE_data import update_WIBEE_history
+from dashboard.comun.get_DATADIS_data import update_DATADIS_history
+from dashboard.apps.yesterday.analysis_som_spot_correlation import grafico_prediccion_precios
 
 conn, error = db.init_db()
 if conn is None:
@@ -63,16 +64,19 @@ st.markdown("""
 st.set_page_config(layout="wide")
 st.sidebar.title("Menú")
 
-pagina = st.sidebar.radio("Ir a:", ["Aerotermia", "Producción mes", "Producción dia", "Correlacion Solar", "Correlacion Energia Spot", "Factura", "Ajustes"])
+pagina = st.sidebar.radio("Ir a:", ["Aerotermia", "Producción mes", "Producción dia", "Correlacion Solar", "Correlacion Energia Spot", "Correlación Precios spot-som", "Factura", "Ajustes"])
 if pagina == "Aerotermia":
     with st.container():
         st.header("Consumo aerotermia vs temperaturas")
-        df = get_aerotermia_data(conn)
-        fig = grafico_aerotermia(df)
-        st.plotly_chart(fig, width='stretch')
-        st.subheader("Coste y consumo mensual")
-        table = tabla_aerotermia(df)
-        st.markdown(table, unsafe_allow_html=True)
+        df, error = get_aerotermia_data(conn)
+        if error:
+            st.error(error)
+        else:
+            fig = grafico_aerotermia(df)
+            st.plotly_chart(fig, width='stretch')
+            st.subheader("Coste y consumo mensual")
+            table = tabla_aerotermia(df)
+            st.markdown(table, unsafe_allow_html=True)
 
 elif pagina == "Producción mes":
     st.header("Datos mensuales de producción, consumo, autoconsumo y excedente")
@@ -80,35 +84,53 @@ elif pagina == "Producción mes":
 
     col1, col2 = st.columns(2, border=True)
     with col1:
-        st.subheader("Producción mensual de energía solar (kWh)")
-        fig = grafico_energia_mes(df_monthly_solar, title="Producción mensual de energía solar (kWh) por año")
+        #st.subheader("Producción mensual de energía solar (kWh)")
+        fig = grafico_energia_mes(df_monthly_solar, title="Producción mensual de energía solar (kWh) por año", yTitle ="kWh")
         st.plotly_chart(fig, width='stretch')
-        with st.expander("ℹ️ Ver datos"):
-            df2 = df_monthly_solar.copy()
-            # Columnas numéricas excepto 'year'
-            num_cols = df2.select_dtypes(include="number").columns.drop("year")
-            # Formateo a string con 2 decimales
-            df2[num_cols] = df2[num_cols].map(lambda x: f"{x:.0f}")
-            msg = render_df_proportional(df2, widths=[], width_percent=90)
-            st.markdown(msg, unsafe_allow_html=True)
+        # with st.expander("ℹ️ Ver datos"):
+        #     df2 = df_monthly_solar.copy()
+        #     # Columnas numéricas excepto 'year'
+        #     num_cols = df2.select_dtypes(include="number").columns.drop("year")
+        #     # Formateo a string con 2 decimales
+        #     df2[num_cols] = df2[num_cols].map(lambda x: f"{x:.0f}")
+        #     msg = render_df_proportional(df2, widths=[], width_percent=90)
+        #     st.markdown(msg, unsafe_allow_html=True)
     with col2:
-        st.subheader("Excedente mensual de energía solar (kWh)")
-        fig = grafico_energia_mes(df_monthly_excedente, title="Excedente mensual de energía solar (kWh) por año")
+        #st.subheader("Consumo mensual de energía (kWh)")
+        fig = grafico_energia_mes(df_monthly_consumo, title="Consumo mensual de energía (kWh) por año", yTitle ="kWh")
         st.plotly_chart(fig, width='stretch')
+
 
     col3, col4 = st.columns(2, border=True)
     with col3:
-        st.subheader("Consumo mensual de energía (kWh)")
-        fig = grafico_energia_mes(df_monthly_consumo, title="Consumo mensual de energía (kWh) por año")
+        #st.subheader("Autosuficiencia -> autoconsumo / consumo (%)")
+
+        cols = [c for c in df_monthly_excedente.columns if c != "year"]
+        df_resultado = (df_monthly_autoconsumo[cols] / df_monthly_consumo[cols]) * 100
+        df_resultado.insert(0, "year", df_monthly_excedente["year"])
+        fig = grafico_energia_mes(df_resultado, title="Autoconsumo / Consumo", yTitle ="%")
         st.plotly_chart(fig, width='stretch')
+
     with col4:
-        st.subheader("Autoconsumo mensual de energía (kWh)")
-        fig = grafico_energia_mes(df_monthly_autoconsumo, title="Autoconsumo mensual de energía (kWh) por año")
+        #st.subheader("Autoconsumo -> autoconsumo / producción (%)")
+
+        cols = [c for c in df_monthly_autoconsumo.columns if c != "year"]
+        df_resultado = (df_monthly_autoconsumo[cols] / df_monthly_solar[cols]) * 100
+        df_resultado.insert(0, "year", df_monthly_autoconsumo["year"])
+        fig = grafico_energia_mes(df_resultado, title="Autoconsumo / Producción", yTitle ="%")
         st.plotly_chart(fig, width='stretch')
+    
+    #st.subheader("Excedente -> excedente / producción (%)")
+
+    cols = [c for c in df_monthly_excedente.columns if c != "year"]
+    df_resultado = (df_monthly_excedente[cols] / df_monthly_solar[cols]) * 100
+    df_resultado.insert(0, "year", df_monthly_excedente["year"])
+    fig = grafico_energia_mes(df_resultado, title="Excedente / Producción", yTitle ="%")
+    st.plotly_chart(fig, width='stretch')
 
 elif pagina == "Producción dia":
     st.header("Datos diarios de producción de energía solar")
-    grafico_solar, error = grafico_solar_today(conn)
+    grafico_solar, error = grafico_solar_today(conn, method='lr')
     if error:
         st.error(error)
     else:
@@ -124,6 +146,10 @@ elif pagina == "Correlacion Energia Spot":
     # df = power_weather_correlation( conn)
     # fig = grafico_prediccion(df)
     fig = grafico_prediccion_energia(conn)
+    st.plotly_chart(fig, width='stretch')
+
+elif pagina == "Correlación Precios spot-som":
+    fig = grafico_prediccion_precios(conn)
     st.plotly_chart(fig, width='stretch')
 
 elif pagina == "Factura":
@@ -149,7 +175,7 @@ elif pagina == "Ajustes":
     st.write("Datos actalización de tablas")
     
     st.write("### Tabla con acciones por fila")
-    tables = ['DATADIS_v',"PVGIS", "SOM_precio_indexada", "WIBEE", "METEO", "ESIOS_data"]
+    tables = ['DATADIS',"PVGIS", "SOM_precio_indexada", "WIBEE", "METEO", "ESIOS_data"]
     df, error = db.get_tables_info(conn, tables)
     if error:
         st.error(f"Error al obtener información de tablas: {error}")
@@ -174,9 +200,9 @@ elif pagina == "Ajustes":
             if col4.button("▶", key=f"btn_{idx}"):
                 # Acción dependiente del concepto
                 placeholder = st.empty()
-                placeholder.success(f"Ejecutando acción para concepto {row['Tabla']} (fila {idx})")
+                placeholder.success(f"Actualizando {row['Tabla']} ...")
                 if idx == 0:
-                    resultado, error = upodate_DATADIS_data(conn)
+                    resultado, error = update_DATADIS_history(conn)
                     if error:
                         placeholder.error(error)
                     else:
@@ -184,10 +210,13 @@ elif pagina == "Ajustes":
                 if idx == 1:
                     st.success("Nada que actualizar")
                 if idx == 2:
-                    resultado, error = update_Som_history(conn)
+                    df, error = update_Som_history(conn)
                     if error:
                         placeholder.error(error)
                     else:
+                        desde = df['datetime'].min().strftime("%Y-%m-%d %H:%M")
+                        hasta = df['datetime'].max().strftime("%Y-%m-%d %H:%M")
+                        resultado = f"{len(df)} filas insertadas en SOM_precio_indexada desde {desde} hasta {hasta}"
                         placeholder.success(resultado)
                 if idx == 3:
                     resultado, error = update_WIBEE_history(conn)
@@ -196,15 +225,21 @@ elif pagina == "Ajustes":
                     else:
                         placeholder.success(resultado)
                 if idx == 4:
-                    resultado, error = update_openmeteo_history(conn)
+                    df, error = update_openmeteo_history(conn)
                     if error:
                         placeholder.error(error)
                     else:
+                        desde = df['datetime'].min().strftime("%Y-%m-%d %H:%M")
+                        hasta = df['datetime'].max().strftime("%Y-%m-%d %H:%M")
+                        resultado = f"{len(df)} filas insertadas en METEO desde {desde} hasta {hasta}"
                         placeholder.success(resultado)
                 if idx == 5:
-                    resultado, error = update_ESIOS_history(conn)
+                    df, error = update_ESIOS_history(conn)
                     if error:
                         placeholder.error(error)
                     else:
+                        desde = df['datetime'].min().strftime("%Y-%m-%d %H:%M")
+                        hasta = df['datetime'].max().strftime("%Y-%m-%d %H:%M")
+                        resultado = f"{len(df)} filas insertadas en ESIOS_data desde {desde} hasta {hasta}"
                         placeholder.success(resultado)
 

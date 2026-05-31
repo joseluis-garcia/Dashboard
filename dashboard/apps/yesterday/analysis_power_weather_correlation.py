@@ -1,13 +1,15 @@
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from dashboard.comun.sql_utilities import read_sql_ts
 
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score, mean_absolute_error
 
-from dashboard.comun.get_openmeteo import get_meteo_7D, get_meteo_hours
+from dashboard.comun.get_openmeteo import get_METEO_data_from_measurements, get_meteo_7D, get_meteo_hours
+from dashboard.comun.date_conditions import get_cache_period
+from dashboard.comun.sql_utilities import read_sql_ts
+import dashboard.apps.config as TCB
 
 # ============================================================
 # 1. CARGA DE DATOS DESDE SQL
@@ -19,19 +21,10 @@ def load_production_data(sql_engine):
     Debe devolver columnas: datetime, production
     """
     query = "select datetime, solar_Wh, power_Wp from WIBEE where datetime > '2020-01-01' order by datetime"
-    df = pd.read_sql(query, sql_engine, parse_dates = ["datetime"])
+    df, error = read_sql_ts(query, sql_engine)
+
     df['production'] = df['solar_Wh'] / df['power_Wp'] * 6.6
     df = df.drop(columns=['power_Wp', 'solar_Wh'])
-    return df
-
-def load_weather_data(sql_engine):
-    """
-    Carga datos meteorológicos desde SQL.
-    Debe devolver columnas: datetime, radiation, cloud_cover, temperature
-    """
-    query = 'select datetime, temperature, cloud_cover, direct_radiation as radiation from METEO order by datetime'
-    #query = 'select date as datetime, temp as temperature, cloudcover as cloud_cover, solarradiation as radiation from VXSING_hours order by datetime'
-    df = pd.read_sql(query, sql_engine, parse_dates = ["datetime"])
     return df
 
 # ============================================================
@@ -154,7 +147,11 @@ def predict_future(model, df_future_weather):
 def power_weather_correlation( conn):
     # 1. Cargar datos
     df_prod = load_production_data(conn)
-    df_weather = load_weather_data(conn)
+    df_weather, error = get_METEO_data_from_measurements(conn)
+
+    if error:
+        print(f"Error al cargar datos meteorológicos: {error}")
+        return None
 
     # 2. Unir
     df = merge_datasets(df_prod, df_weather)
@@ -168,7 +165,7 @@ def power_weather_correlation( conn):
 
     # 5. Predecir futuro
     CASA = dict(lat=40.5661,lon=3.8998)
-    df_long, error = get_meteo_7D(CASA['lat'], CASA['lon'], 45)
+    df_long, error = get_meteo_7D(TCB.CASA['lat'], TCB.CASA['lon'], TCB.AZIMUTH, TCB.TILT, cache_period=get_cache_period())
     df_short = get_meteo_hours(df_long, 24)
     df_weather_forecast = df_short.rename(columns={
         "temperature_2m":"temperature",
@@ -206,7 +203,13 @@ def grafico_prediccion_full( df):
 def grafico_prediccion_simple(conn):
     # 1. Cargar datos
     df_prod = load_production_data(conn)
-    df_weather = load_weather_data(conn)
+    df_weather, error = get_METEO_data_from_measurements(conn)
+    if error:
+        print(f"Error al cargar datos meteorológicos: {error}")
+        return None
+    df_weather = df_weather.rename(columns={
+        "direct_radiation":"radiation"
+    })
 
     # 2. Unir
     df = merge_datasets(df_prod, df_weather)

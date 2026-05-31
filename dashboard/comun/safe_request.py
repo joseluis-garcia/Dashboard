@@ -89,7 +89,7 @@ def safe_request_get(
     *,
     params: Optional[dict] = None,
     headers: Optional[dict] = None,
-    timeout: int = 60
+    timeout: int = 90
 ) -> Tuple[Optional[requests.Response], Optional[str]]:
     """
     Realiza un GET request seguro.

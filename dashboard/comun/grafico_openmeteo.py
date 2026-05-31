@@ -8,14 +8,17 @@ Proporciona funciones para:
 from typing import Tuple, Optional
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import streamlit as st
 
+from dashboard.comun.date_conditions import get_cache_period
 from dashboard.comun.get_openmeteo import get_meteo_7D, get_meteo_hours
+import dashboard.apps.config as TCB
 
 def grafica_openmeteo( 
-    lat: float,
-    lon: float,
-    azimuth: float,
+    method: str = "lr",
+    lat: float = TCB.CASA["lat"],
+    lon: float = TCB.CASA["lon"],
+    azimuth: float = TCB.AZIMUTH,
+    tilt: float = TCB.TILT,
     time_unit: Optional[int] = None
 ) -> Tuple[Optional[go.Figure], Optional[str]]:
     """
@@ -41,17 +44,10 @@ def grafica_openmeteo(
         >>> fig, error = grafica_meteo(24) grafica con datos de las próximas 24 horas
         >>> fig.show()
     """
-    cache_key = {lat,lon,azimuth}
-    if (not hasattr(grafica_openmeteo, "df_cache") or 
-        grafica_openmeteo.df_cache is None or 
-        grafica_openmeteo.cache_key != cache_key):
-        grafica_openmeteo.df_cache, error = get_meteo_7D(lat, lon, azimuth)
-        if error:
-            return None, f"grafica_openmeteo: {error}"
-        grafica_openmeteo.cache_key = cache_key
+    df, error = get_meteo_7D(lat, lon, azimuth, tilt, cache_period=get_cache_period())
+    if error:
+        return None, f"grafica_openmeteo: {error}"
 
-    df = grafica_openmeteo.df_cache
-    
     if time_unit is not None:
         df = get_meteo_hours(df, time_unit)
 

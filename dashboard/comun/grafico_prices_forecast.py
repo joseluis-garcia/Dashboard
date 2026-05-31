@@ -15,7 +15,7 @@ import pytz
 import streamlit as st
 
 from dashboard.comun import date_conditions as dc
-from dashboard.comun.get_Som_data import get_Som_prices_history
+from dashboard.comun.get_Som_data import get_Som_prices_from_measurements
 from dashboard.comun.get_prices_forecast import get_prices_forecast
 
 @st.cache_data
@@ -50,13 +50,15 @@ def grafico_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas, me
     df_precios, error = get_prices_forecast(_conn, rango, method)
     if error:
         return None, error
-    df_precios.index = df_precios.index.tz_convert(pytz.timezone("Europe/Madrid"))
 
     # Obtenemos historico de precios Som
-    df_Som, error = get_Som_prices_history(_conn, rango)
+    df_Som, error = get_Som_prices_from_measurements(_conn, rango)
     if error:
         return None, error
-    df_Som.index = df_Som.index.tz_convert(pytz.timezone("Europe/Madrid"))
+    
+    # Convertimos a hora local para graficar (Plotly maneja mejor fechas con tz)
+    df_precios.index = df_precios.index.tz_convert("Europe/Madrid")
+    df_Som.index = df_Som.index.tz_convert("Europe/Madrid")
     
     fig_estimacion = go.Figure()
 

@@ -1,12 +1,14 @@
 import pandas as pd
 import plotly.graph_objects as go
-from dashboard.comun.sql_utilities import read_sql_ts
 
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score, mean_absolute_error
 
-from dashboard.comun.get_openmeteo import get_meteo_7D, get_meteo_hours
+from dashboard.comun.date_conditions import get_cache_period
+from dashboard.comun.sql_utilities import read_sql_ts
+from dashboard.comun.get_openmeteo import get_METEO_data_from_measurements, get_meteo_7D, get_meteo_hours
+import dashboard.apps.config as TCB
 
 # ============================================================
 # 1. CARGA DE DATOS DESDE SQL
@@ -107,7 +109,11 @@ def predict_future(model, df_future_weather):
 def power_weather_correlation( conn):
     # 1. Cargar datos
     df_prod = load_production_data(conn)
-    df_weather = load_weather_data(conn)
+    df_weather, error = get_METEO_data_from_measurements(conn)
+
+    if error:
+        print(f"Error al cargar datos meteorológicos: {error}")
+        return None
 
     # 2. Unir
     df = merge_datasets(df_prod, df_weather)
@@ -121,7 +127,7 @@ def power_weather_correlation( conn):
 
     # 5. Predecir futuro
     CASA = dict(lat=40.5661,lon=3.8998)
-    df_long, error = get_meteo_7D(CASA['lat'], CASA['lon'], 45)
+    df_long, error = get_meteo_7D(TCB.CASA['lat'], TCB.CASA['lon'], TCB.AZIMUTH, TCB.TILT, cache_period=get_cache_period())
     df_short = get_meteo_hours(df_long, 24)
     df_weather_forecast = df_short.rename(columns={
         "temperature_2m":"temperature",

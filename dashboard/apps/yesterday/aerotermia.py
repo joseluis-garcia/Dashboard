@@ -3,6 +3,9 @@ import pandas as pd
 import scipy.stats as stats
 import plotly.graph_objects as go
 import numpy as np
+import sqlite3
+
+from dashboard.comun.get_Som_data import get_Som_prices_from_measurements
 from dashboard.comun.mensaje import render_df_proportional
 from dashboard.comun.sql_utilities import read_sql_ts
 
@@ -10,29 +13,44 @@ def cleanSolar( row):
     # Para cada dia se asume que toda la energia proveniente de los paneles se consume primero en aerotermia
     return row['extra_Wh'] - row['solar_Wh'] if row['extra_Wh'] > row['solar_Wh'] else 0
 
-def get_aerotermia_data( conn):
+def get_aerotermia_data( conn: sqlite3.Connection) -> tuple[pd.DataFrame, str | None]:
+    """
+    Carga datos históricos de consumo de aerotermia, precios y temperaturas, y los combina en un solo DataFrame.
+    Args:
+        conn: Conexión a la base de datos SQLite
+    Returns:
+        df_final: DataFrame con columnas ['datetime', 'price', 'energy', 'temp']
+        error: None si es exitoso, mensaje de error si falla
+    """
+    
     #Query historical energy consumption data from WIBEE table
     query = "SELECT datetime, solar_Wh, extra_Wh from WIBEE where extra_Wh > 15 and extra='{0}' order by datetime".format('AEROTERMIA')
     swibe, error = read_sql_ts(query, conn)
+    if error:
+        st.error(f"Error al cargar datos históricos de aerotermia: {error}")
+        return None, error
+    
     swibe['energy'] = swibe.apply( cleanSolar, axis = 1)
     swibe['energy'] = swibe["energy"] / 1000 # Convertir a kWh
     swibe = swibe[['energy']]
     aeroMin = swibe.index.min()
     aeroMax = swibe.index.max()
-    st.write(f"WIBEE since {aeroMin} to {aeroMax}")
 
     # Query prices data form precios_indexada
     query = "SELECT * from SOM_precio_indexada order by datetime"
-    prices, error = read_sql_ts(query, conn)
+    prices, error = get_Som_prices_from_measurements(conn, {"start_date": aeroMin.strftime("%Y-%m-%d %H:%M"), "end_date": aeroMax.strftime("%Y-%m-%d %H:%M")})
+    if error:
+        mensaje = (f"Error al cargar datos históricos de precios de aerotermia: {error}")
+        return None, mensaje
+
+
     prices['price'] = pd.to_numeric(prices['price'], errors='coerce')
-    prices['price'] = prices['price'] * 1.21
+    prices['price'] = prices['price'] * 1.21 #Aplicamos el IVA para obtener el precio final de la factura
     pricesMin = prices.index.min()
     pricesMax = prices.index.max()
-    st.write(f"PRICES since {pricesMin} to {pricesMax}")
 
     dateMin = max(pricesMin, aeroMin)
     dateMax = min(pricesMax, aeroMax)
-    st.write(f"Using data from {dateMin} to {dateMax}")
 
     df_energy = swibe[(swibe.index >= dateMin) & (swibe.index <= dateMax)]
     df_prices = prices[(prices.index >= dateMin) & (prices.index <= dateMax)]
@@ -41,13 +59,16 @@ def get_aerotermia_data( conn):
     df_cost = df_prices.join(df_energy)
     df_cost["cost"] = df_cost["price"] * df_cost["energy"]
 
-    #Get weather data from VXSING
+    #Get weather data from METEO table
     query = "SELECT datetime, temperature as temp from METEO where datetime >= '{0}' and datetime <= '{1}' order by datetime".format(dateMin, dateMax)
     df_temp, error = read_sql_ts(query, conn)
+    if error:
+        mensaje = f"Error al cargar datos meteorológicos: {error}"
+        return None, mensaje
 
     #Merge all data in one final dataframe
     df_final = df_cost.join(df_temp)
-    return df_final
+    return df_final, None
 
 def grafico_aerotermia(df_final):
     # Clean days where only standby consumption
@@ -162,6 +183,7 @@ def tabla_aerotermia(df_final: pd.DataFrame) -> str:
     '''
     Renderiza en una tabla HTML para mostrar el dataframe que contine los datos de aerotermia.
     '''
+    df_final.index = df_final.index.tz_convert("Europe/Madrid")
 
     df_monthly1 = df_final.resample("ME").sum()
     df_monthly1["date"] = df_monthly1.index.strftime("%Y-%m")

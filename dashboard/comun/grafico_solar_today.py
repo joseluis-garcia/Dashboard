@@ -8,9 +8,10 @@ import dashboard.apps.config as TCB
 
 
 from dashboard.comun.get_energy_forecast import predict_future
-from dashboard.comun.date_conditions import add_sun_data
+from dashboard.comun.date_conditions import add_sun_data, get_cache_period
 from dashboard.comun.get_PVGIS_data import get_PVGIS_data
 from dashboard.comun.get_WIBEE_data import get_WIBEE_today, get_WIBEE_today_history
+from dashboard.comun.get_openmeteo import get_meteo_7D
 from dashboard.comun.grafico_openmeteo import grafica_openmeteo
 
 def grafico_solar_today(conn, method="rf") -> Tuple[Optional[go.Figure], Optional[str]]:
@@ -49,7 +50,11 @@ def grafico_solar_today(conn, method="rf") -> Tuple[Optional[go.Figure], Optiona
 
     #Obtenemos el pronostico de hoy para obtener forecast de producción solar
     hoy = date.today()
-    local = grafica_openmeteo.df_cache.copy()
+
+    local, error = get_meteo_7D(TCB.CASA['lat'], TCB.CASA['lon'], TCB.AZIMUTH, TCB.TILT, cache_period=get_cache_period())
+
+    if error:
+        return None, f"grafico_solar_today: {error}"
 
     df_hoy = local[local.index.date == hoy]
 

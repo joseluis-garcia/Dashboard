@@ -19,7 +19,11 @@ def load_ESIOS_data(sql_engine):
     Debe devolver columnas: datetime, production
     """
     query = 'select datetime, Eólica as eolica, "Solar Fotovoltaica" as solar, "Mercado SPOT" as spot, "Demanda Real" as demanda from ESIOS_data order by datetime'
-    df = pd.read_sql(query, sql_engine, parse_dates = ["datetime"])
+    df, error = read_sql_ts(query, sql_engine)
+
+    if error:
+        print(f"Error al cargar datos de ESIOS: {error}")
+        return None
 
     df['renovable'] = (df['eolica'] + df['solar']) / df['demanda']
     print("Filas con problemas:",df[df.isna().any(axis=1)])
@@ -126,37 +130,6 @@ def predict_future(model, df_future_weather):
     df_future_weather = df_future_weather.copy()
     df_future_weather["predicted_production"] = model.predict(df_future_weather[["temperature", "cloud_cover","radiation"]])
     return df_future_weather
-
-# def power_weather_correlation( conn):
-#     # 1. Cargar datos
-#     df_prod = load_production_data(conn)
-#     df_weather = load_weather_data(conn)
-
-#     # 2. Unir
-#     df = merge_datasets(df_prod, df_weather)
-
-#     # 3. Limpiar
-#     df = clean_dataset(df)
-
-#     # 4. Entrenar
-#     model, metrics = train_model_rf(df)
-#     print(metrics)
-
-#     # 5. Predecir futuro
-#     CASA = dict(lat=40.5661,lon=3.8998)
-#     df_long, error = get_meteo_7D(CASA['lat'], CASA['lon'], 45)
-#     df_short = get_meteo_hours(df_long, 24)
-#     df_weather_forecast = df_short.rename(columns={
-#         "temperature_2m":"temperature",
-#         "direct_radiation":"radiation",
-#     })
-#     print("Datos meteorológicos para predicción futura:\n", df_weather_forecast.head())
-#     df_weather_forecast["time_local"] = (df_weather_forecast["date"].dt.tz_convert("Europe/Madrid"))
-#     df_weather_forecast = df_weather_forecast.drop(columns=['precipitation_probability','weather_code','date','time'])
-
-#     df_future = predict_future(model, df_weather_forecast)
-#     print(df_future)
-#     return df_future
 
 def grafico_prediccion_full( df):
     fig = go.Figure()

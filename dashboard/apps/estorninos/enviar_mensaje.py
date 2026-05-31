@@ -3,34 +3,14 @@ Este script se encarga de calcular el mensaje que se enviará a Estorninos cada 
 El envío del mensaje se realiza a través de Telegram, utilizando un bot y un canal específico para Estorninos. El mensaje se construye con datos obtenidos de ESIOS (precios de energía), OpenMeteo (previsión meteorológica) y otras fuentes relevantes.
 Los datos de TG estan en st.secrets para evitar exponerlos en el código. El mensaje se envía solo si la clave "TG_active" en secrets está activada (True).
 """
-import re
-import sys
-import tomllib
-from pathlib import Path
-from datetime import date
 
-'''
-Este código es para independizar la app de Estorninos del resto del proyecto, permitiendo que se ejecute de forma autónoma para calcular y enviar el mensaje diario a Telegram sin necesidad de cargar toda la app ni sus dependencias. Para ello, se carga manualmente el archivo de secrets y se parchea st.secrets antes de cualquier import que lo utilice.'''
+from dashboard.comun.load_secrets import load_secrets
+load_secrets(levels_up=3)  # Carga secrets y parchea st.secrets antes de cualquier import
 
-BASE_DIR = Path(__file__).parent.parent.parent.parent
-secrets_path = BASE_DIR / ".streamlit" / "secrets.toml"
-project_path = BASE_DIR
-
-print(f"Path del proyecto: {project_path}")
-# Uso
-sys.path.insert(0, str(project_path))
-
-# Cargar secrets y parchear st.secrets ANTES de cualquier import de la app
 import streamlit as st
-
-with open(secrets_path, 'rb') as f:
-    _secrets = tomllib.load(f)
-
-class FakeSecrets(dict):
-    def __getattr__(self, key):
-        return self[key]
-
-st.secrets = FakeSecrets(_secrets)
+import jenkspy 
+import re
+from datetime import date
 
 # A partir de aquí todos los imports leen st.secrets normalmente
 from dashboard.comun.get_ESIOS_data import get_ESIOS_spot
@@ -47,6 +27,18 @@ def escape_md(text: str) -> str:
         Returns: Texto escapado
     '''
     return re.sub(r'([_\*\[\]()~`>#+=|{}.!\-])', r'\\\1', text)
+
+
+
+def clasificar_precios(precios: pd.Series, n_clases: int = 3) -> pd.Series:
+    breaks = jenkspy.jenks_breaks(precios.values, n_classes=n_clases)
+    # breaks = [min, umbral_bajo, umbral_alto, max]
+    return pd.cut(
+        precios,
+        bins=breaks,
+        labels=["barato", "normal", "caro"],
+        include_lowest=True
+    )
 
 def calcular_mensaje() -> str:
     '''
@@ -73,12 +65,35 @@ def calcular_mensaje() -> str:
         #horas_negativo_str = ", ".join(df_negativos.index.hour.astype(str))
         horas_negativo_str = horas_a_texto(df_negativos.index.tolist())
 
-    df_omie_barato=df_omie[df_omie["Mercado SPOT"]<df_omie["Mercado SPOT"].quantile(0.1)]
+
+    # df_omie_barato=df_omie[df_omie["Mercado SPOT"]<=df_omie["Mercado SPOT"].quantile(0.1)]
+    # horas_barato_str = horas_a_texto(df_omie_barato.index.tolist())
+    # df_omie_caro=df_omie[df_omie["Mercado SPOT"]>=df_omie["Mercado SPOT"].quantile(0.9)]
+    # horas_caro_str = horas_a_texto(df_omie_caro.index.tolist())
+
+    precios_kwh = df_omie["Mercado SPOT"] / 1000
+    breaks = jenkspy.jenks_breaks(precios_kwh.values, n_classes=4)
+
+    df_omie_barato = df_omie[precios_kwh <= breaks[1]]
+    df_omie_caro   = df_omie[precios_kwh >= breaks[3]]
+
+    baratos_kwh = precios_kwh[precios_kwh <= breaks[1]]
+    caros_kwh   = precios_kwh[precios_kwh >= breaks[3]]
+
+    precios_baratos_str = f"{baratos_kwh.min():.3f}€/kWh a {baratos_kwh.max():.3f}€/kWh"
+    precios_caros_str   = f"{caros_kwh.min():.3f}€/kWh a {caros_kwh.max():.3f}€/kWh"
+    # print(precios_baratos_str)
+    # print(precios_caros_str)
+
     horas_barato_str = horas_a_texto(df_omie_barato.index.tolist())
-    #horas_barato_str = ", ".join(df_omie_barato.index.hour.astype(str))
-    df_omie_caro=df_omie[df_omie["Mercado SPOT"]>df_omie["Mercado SPOT"].quantile(0.9)]
-    horas_caro_str = horas_a_texto(df_omie_caro.index.tolist())
-    #horas_caro_str = ", ".join(df_omie_caro.index.hour.astype(str))
+    #precios_baratos_str = f"{df_omie_barato['Mercado SPOT'].min():.2f}€/kWh a {df_omie_barato['Mercado SPOT'].max():.2f}€/kWh (< {breaks[1]:.3f} €/kWh)"
+    precios_baratos_str = f"(< {breaks[1]:.3f} €/kWh)"
+
+    #print(f"(< {breaks[1]:.3f} €/kWh)")
+    horas_caro_str   = horas_a_texto(df_omie_caro.index.tolist())
+    precios_caros_str = f"(> {breaks[3]:.3f} €/kWh)"
+    #precios_caros_str = f"{df_omie_caro['Mercado SPOT'].min():.2f}€/kWh a {df_omie_caro['Mercado SPOT'].max():.2f}€/kWh (> {breaks[3]:.3f} €/kWh)"
+    #print(f"(> {breaks[3]:.3f} €/kWh)")
 
     df_meteo = get_meteo_today()  # Madrid
     fecha = date.today()
@@ -88,10 +103,6 @@ def calcular_mensaje() -> str:
     # Aquí va la lógica para calcular el mensaje basado en los datos de ESIOS u otras fuentes
     mensaje = escape_md(f"¡Hola! Este es un mensaje para Estorninos.\nHoy es: {str_fecha}.\n")
 
-    # mensaje += f"Estamos en {estacion} y el clima de hoy en España es:\n"
-    # for _, row in df_meteo.iterrows():
-    #     mensaje += f"\n-> {row['ciudad']} {row['weather_icon']}  {row['weather_desc']} con temperaturas entre {row['temperature_2m_min']:.1f}°C y {row['temperature_2m_max']:.1f}°C. "
-    #     mensaje += f"Las horas de salida y puesta de sol serán: {row['sunrise']} y {row['sunset']} respectivamente.\n"
 
     # Reemplazar el bloque meteorológico del mensaje por esto:
     mensaje += escape_md(f"Estamos en {estacion} y el clima de hoy en España es:\n")
@@ -127,7 +138,9 @@ def calcular_mensaje() -> str:
     mensaje += escape_md(f"💰 Precios electricidad hoy\n")
     mensaje += "─" * 20 + "\n"
     mensaje += escape_md(f"🟢 Baratos -> {horas_barato_str}\n")
+    mensaje += escape_md(f"💰 {precios_baratos_str}\n")
     mensaje += escape_md(f"🔴 Caros -> {horas_caro_str}\n")
+    mensaje += escape_md(f"💰 {precios_caros_str}\n")
     if not df_negativos.empty:
         mensaje += escape_md(f"⚡ Excedentes negativos -> {horas_negativo_str}\n")
     else:

@@ -114,7 +114,7 @@ def read_sql_ts(
     conn: sqlite3.Connection
 )  -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """
-    Lee datos de SQL y los retorna con índice datetime en UTC.
+    Lee datos de SQL y los retorna con índice datetime UTC pero naive.
     
     Ejecuta una consulta SQL y retorna un DataFrame con:
     - La columna 'datetime' como índice
@@ -128,8 +128,8 @@ def read_sql_ts(
         conn: Conexión abierta a SQLite
         
     Returns:
-        DataFrame con índice datetime en UTC
-        error en caso de error
+        DataFrame con índice datetime en UTC naive y columnas de datos, o None si hay error.
+        Mensaje de error en caso de error
         
     Raises:
         pd.errors.DatabaseError: Si hay error en la consulta SQL
@@ -150,10 +150,46 @@ def read_sql_ts(
             conn,
             index_col="datetime"
         )
-        df.index = pd.to_datetime(df.index, utc=True)
+        df.index = pd.to_datetime(df.index, utc=True)  # Convertir a UTC naive
         return df, None
     except Exception as err:
         return None, f"read_sql_ts: {err}"
 
-
+def get_last_datetime(conn: sqlite3.Connection, table: str) -> Tuple[Optional[pd.Timestamp], Optional[str]]:
+    """
+    Obtiene la última fecha registrada en una tabla específica.
+    
+    Args:
+        conn: Conexión abierta a SQLite
+        table: Nombre de la tabla a consultar
+        
+    Returns:
+        Tupla (última fecha, error) donde:
+        - última fecha: pd.Timestamp de la última fecha registrada, o None si hay error
+        - error: None si es exitoso, mensaje de error si falla
+        
+    Raises:
+        Exception: Se captura cualquier error y se retorna como error message
+        
+    Example:
+        >>> conn, _ = init_db()
+        >>> last_date, error = get_last_datetime(conn, 'measures')
+        >>> if not error:
+        ...     print(last_date)
+        ...     # Output: 2026-03-09 23:00:00
+    """
+    try:
+        cursor = conn.cursor()
+        sql = f"SELECT MAX(datetime) FROM {table};"
+        cursor.execute(sql)
+        result = cursor.fetchone()
+        
+        if result and result[0]:
+            return pd.to_datetime(result[0], utc=True), None
+        else:
+            return None, f"No se encontraron registros en la tabla {table}."
+        
+    except Exception as err:
+        return None, f"Error al obtener la última fecha de la tabla {table}: {err}"
+    
 __all__ = ["init_db", "get_tables_info", "read_sql_ts"]

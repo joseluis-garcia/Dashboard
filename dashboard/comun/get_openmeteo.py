@@ -24,7 +24,8 @@ import requests_cache
 from retry_requests import retry
 from datetime import datetime, timedelta, timezone
 
-from dashboard.comun import sql_utilities as db
+from dashboard.comun.date_conditions import RangoFechas, get_cache_period
+from dashboard.comun.sql_utilities import init_db, read_sql_ts
 import dashboard.apps.config as TCB
 
 '''
@@ -78,10 +79,13 @@ WEATHER_CODE_SPANISH_ICON = {
     99: ("Tormenta con granizo intenso", "⛈️❄️"),
 }
 
+@st.cache_data
 def get_meteo_7D(
-    lat: float,
-    lon: float,
-    azimuth: float
+    lat: float = TCB.CASA["lat"],
+    lon: float = TCB.CASA["lon"],
+    azimuth: float = TCB.AZIMUTH,
+    tilt: float = TCB.TILT,
+    cache_period: Optional[str] = None
 ) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """
     Obtiene previsión meteorológica de 7 días de Open-Meteo.
@@ -126,7 +130,7 @@ def get_meteo_7D(
             ],
             "timezone": TCB.TIMEZONE_LOCAL,
             "azimuth": azimuth,
-            "tilt": 10
+            "tilt": tilt
         }
 
         # Realizar solicitud
@@ -217,7 +221,6 @@ def openmeteo_daily_to_df(response, city_name) -> Dict[str, Any]:
     row["temperature_2m_min"] = daily.Variables(4).ValuesAsNumpy()[0]
     return row
 
-
 def get_meteo_today()-> pd.DataFrame:
     """
     Obtiene los datos meteorológicos para el día actual.
@@ -258,7 +261,6 @@ def get_meteo_today()-> pd.DataFrame:
 
     return daily_dataframe
 
-
 def update_openmeteo_history(
 		conn: Optional[sqlite3.Connection] = None) -> Tuple[
 			Optional[pd.DataFrame], 
@@ -266,21 +268,24 @@ def update_openmeteo_history(
 
     if conn is None:
         # Connect to SQLite database
-        conn, error = db.init_db()
+        conn, error = init_db()
         if error:
             return None, f"Error al conectar a la base de datos: {error}"
 
     #Previous data recorded until
     df = pd.read_sql_query("SELECT MAX(datetime) as maxDate FROM METEO", conn, parse_dates=["maxDate"])
     df["maxDate"] = pd.to_datetime(df["maxDate"])
-    startDate = df["maxDate"].iloc[0] + pd.Timedelta(days=1)
+
+    print(f"Último dato meteorológico registrado en la base de datos: {df['maxDate'].iloc[0]}")
+
+    startDate = df["maxDate"].iloc[0]
     # Get the current UTC time
-    endDate = datetime.now(timezone.utc) + timedelta(days=-1)
+    endDate = datetime.now(timezone.utc) + timedelta(days=-1)  # less 1 day to ensure we get all data updated in Open-Meteo
 
     # Convert the datetime object to a string
     strStartDate = startDate.strftime("%Y-%m-%d")
     strEndDate = endDate.strftime("%Y-%m-%d")
-	
+
     params = {
         "latitude": TCB.CASA['lat'],
         "longitude": TCB.CASA['lon'],
@@ -289,11 +294,10 @@ def update_openmeteo_history(
         "hourly": ["temperature_2m", "precipitation", "cloud_cover", "global_tilted_irradiance_instant"],      
         "timezone": TCB.TIMEZONE_LOCAL,
         "azimuth": TCB.AZIMUTH,
-        "tilt": 10
+        "tilt": TCB.TILT
     }
 
 	# Setup the Open-Meteo API client with cache and retry on error
-    print(f"Solicitando datos meteorológicos desde {params['start_date']} hasta {params['end_date']}")
     cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
     retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
     #openmeteo = openmeteo_requests.Client(session = retry_session)
@@ -332,8 +336,7 @@ def update_openmeteo_history(
         .dt.tz_localize(None)
     )
 
-    df = hourly_df.set_index("datetime").sort_index()
-
+    df = hourly_df[hourly_df["datetime"] > startDate]
     try:
         # Create the table if it doesn't exist
         cursor = conn.cursor()
@@ -349,19 +352,51 @@ def update_openmeteo_history(
         conn.commit()
 
         # Insert data into the table
-        df.to_sql('METEO', conn, if_exists='append', index=True)
-        return f"Insertadas {len(df)} filas en METEO desde {df.index.min()} hasta {df.index.max()}", None
+        df.to_sql('METEO', conn, if_exists='append', index=False)
+        return df, None
 	
     except Exception as e:
         return None, f"Error al insertar datos en la base de datos: {e}"
 
+def get_METEO_data_from_measurements(conn: sqlite3.Connection, rango: Optional[RangoFechas] = None) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+    """
+    Carga datos historicos de METEO para entrenar modelos desde SQL.
+    Debe devolver columnas: ['datetime', 'temperature', 'cloud_cover', 'precipitation', 'direct_radiation']
+
+    Args:
+        rango: Diccionario con 'start_date' y 'end_date'
+        
+    Returns:
+        Tupla (dataframe, error) donde:
+         
+        - dataframe: Index('datetime'), 'temperature', 'cloud_cover', 'precipitation', 'direct_radiation']
+        - error: None si es exitoso, mensaje de error si falla
+    """
+    try:
+        if rango is None:
+            query = 'select datetime, temperature, cloud_cover, precipitation, direct_radiation from METEO order by datetime'
+        else:
+            query = f'select datetime, temperature, cloud_cover, precipitation, direct_radiation from METEO where datetime >= {rango["start_date"]} and datetime <= {rango["end_date"]} order by datetime'
+
+        df, error = read_sql_ts(query, conn)
+        if error:
+            return None, f"Error al ejecutar consulta SQL para METEO: {error}"
+
+        print("Filas con problemas en METEO:",df[df.isna().any(axis=1)])
+        df = df.dropna(subset=['temperature', 'cloud_cover', 'precipitation', 'direct_radiation'])
+        return df, None
+    
+    except Exception as e:
+        return None, f"Error al cargar datos historicos de METEO: {e}"
+
 if __name__ == "__main__":
-	df, resultado = update_openmeteo_history()
+    df, error = update_openmeteo_history()
 
-	if resultado is not None:
-		print(f"Resultado: {resultado}")
-
-	if df is not None:
-		print(f"Datos insertados:\n{df.head()}")
+    if error is not None:
+        print(f"Resultado: {error}")
+    if df is not None:
+        desde = df['datetime'].min().strftime("%Y-%m-%d %H:%M")
+        hasta = df['datetime'].max().strftime("%Y-%m-%d %H:%M")
+        print(f"{len(df)} filas insertadas en METEO desde {desde} hasta {hasta}")
 		
-__all__ = ["get_meteo_7D", "get_meteo_hours"]
+__all__ = ["get_meteo_7D", "get_meteo_hours", "update_openmeteo_history"]

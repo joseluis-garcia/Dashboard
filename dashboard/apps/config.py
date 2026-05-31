@@ -1,6 +1,7 @@
 PUERTA_SOL = dict(lat=40.4169, lon=-3.7033)
 CASA = dict(lat=40.5661,lon=-3.8998)
 AZIMUTH = -45
+TILT = 10
 CURRENT_PEAK_POWER = 6.6
 TIMEZONE_LOCAL = "Europe/Madrid"
 

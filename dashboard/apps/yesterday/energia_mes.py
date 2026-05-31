@@ -35,9 +35,10 @@ def get_energia_mes( conn: sqlite3.Connection) -> pd.DataFrame:
     df_monthly_consumo = df_monthly.pivot(index="year", columns ="month", values= "consumo_Wh").reset_index()
     df_monthly_general = df_monthly.pivot(index="year", columns ="month", values= "general_Wh").reset_index()
     df_monthly_autoconsumo = df_monthly.pivot(index="year", columns ="month", values= "autoconsumo_Wh").reset_index()
+
     return df_monthly, df_monthly_solar, df_monthly_excedente, df_monthly_consumo, df_monthly_general, df_monthly_autoconsumo
 
-def grafico_energia_mes(df_monthly: pd.DataFrame, title: str):
+def grafico_energia_mes(df_monthly: pd.DataFrame, title: str, yTitle: str):
     # Compute min, mean, and max
     fila_actual = df_monthly["year"].max()
     col_actual = datetime.now().month
@@ -49,10 +50,11 @@ def grafico_energia_mes(df_monthly: pd.DataFrame, title: str):
     min_values = resumen.iloc[:, 1:].min(axis=0).tolist()   # Min per month
     mean_values = resumen.iloc[:, 1:].mean(axis=0).tolist() # Mean per month
     max_values = resumen.iloc[:, 1:].max(axis=0).tolist()   # Max per month
+
     df_current_year = df_monthly[df_monthly['year'] == datetime.now().year]
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=list(range(1, 13)), y=df_current_year.iloc[0, 1:].tolist(), mode='lines+markers', name='Producción', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=list(range(1, 13)), y=df_current_year.iloc[0, 1:].tolist(), mode='lines+markers', name='Actual', line=dict(color='blue')))
     fig.add_trace(go.Scatter(x=list(range(1, 13)), y=min_values, mode='lines+markers', name='Mínimo', line=dict(color='red')))
     fig.add_trace(go.Scatter(x=list(range(1, 13)), y=max_values, mode='lines+markers', name='Máximo', line=dict(color='green')))
     fig.add_trace(go.Scatter(x=list(range(1, 13)), y=mean_values, mode='lines+markers', name='Promedio', line=dict(color='white', dash='dot')))
@@ -65,11 +67,11 @@ def grafico_energia_mes(df_monthly: pd.DataFrame, title: str):
     fig.update_layout(
         title=title,
         xaxis_title="Mes",
-        yaxis_title="kWh",
+        yaxis_title=yTitle,
         legend=dict(
                 orientation="h",          # horizontal
                 yanchor="top",
-                y=-0.3,                   # desplaza la leyenda hacia abajo
+                y=-0.2,                   # desplaza la leyenda hacia abajo
                 xanchor="center",
                 x=0.5
             ),

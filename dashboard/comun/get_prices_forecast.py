@@ -99,7 +99,7 @@ def get_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas, method
         
     Returns:
         Tupla (dataframe, error) donde:
-        - dataframe: Index(['Solar fotovoltaica', 'Eólica', 'Demanda real', 'renovable',
+        - dataframe: Index datetime UTC naive,['Solar fotovoltaica', 'Eólica', 'Demanda real', 'renovable',
             'Mercado SPOT', 'precio_estimado', 'periodo', 'peaje', 'cargo',
             'capacidad', 'costes_regulados'] o None si falla
         - error: None si es exitoso, mensaje de error si falla

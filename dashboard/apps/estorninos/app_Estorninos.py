@@ -177,14 +177,12 @@ with tab_algoritmo:
                     st.error("Contraseña incorrecta")
 
 with tab_precios:
-    fig_precios, ticks_mes = load_historico_precios_spot(conn, True, True)
     st.subheader("Mapa de precios spot histórico")
-    st.plotly_chart(fig_precios, width='stretch', key="precios")
-
-# # with tab_peajes:
-# #     fig_peajes, ticks_mes = load_historico_peajes(True, True)
-# #     st.subheader("Mapa de peajes y cargos histórico")
-# #     st.plotly_chart(fig_peajes, width='stretch', key="peajes")
+    fig_precios, ticks_mes, error = load_historico_precios_spot(conn, True, True)
+    if error:
+        st.error(f"Error al cargar datos históricos de precios spot: {error}")
+    else:
+        st.plotly_chart(fig_precios, width='stretch', key="precios")
 
 temp_matrix, error = load_historico_temperaturas(conn)
 if error:
@@ -205,6 +203,7 @@ with tab_stress:
         tMax = st.slider("Calor por encima de:", 15, 45, 28)
 
     st.write(f"El mapa de stress térmico se calcula a partir de las temperaturas históricas, asignando a cada hora un valor con la diferencia {tMin} - tºC si t < {tMin} y tºC - {tMax} si t >= {tMax}. Las horas con temperaturas confortables entre {tMin} y {tMax} no se representan en el mapa de stress.")
+
     fig_stress = grafico_stress_termico(temp_matrix, tMin, tMax)
     st.plotly_chart(fig_stress, width='stretch', key="stress")
 
