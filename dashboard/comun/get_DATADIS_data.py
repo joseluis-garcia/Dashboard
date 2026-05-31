@@ -176,8 +176,19 @@ def update_DATADIS_history(conn: Optional[sqlite3.Connection] = None) -> Tuple[
 
     local_tz = pytz.timezone("Europe/Madrid")
 
-    # 1. Combinar date + time en un string y parsear
-    df["datetime"] = pd.to_datetime(df["date"] + " " + df["time"], format="%Y/%m/%d %H:%M") - pd.Timedelta(hours=1)  # Ajuste para que el timestamp refleje las horas 0-23 en lugar de 1-24 como vienen
+    # 1. Convertir 'date' + 'time' a datetime, restando 1 hora, y manejar "24:00"
+    mask_24 = df["time"] == "24:00"
+
+    # Filas normales: no tienen hora 24:00parsear y restar 1 hora
+    df.loc[~mask_24, "datetime"] = pd.to_datetime(
+        df.loc[~mask_24, "date"] + " " + df.loc[~mask_24, "time"],
+        format="%Y/%m/%d %H:%M"
+    ) - pd.Timedelta(hours=1)
+
+    # Filas con 24:00: el día siguiente a las 23:00
+    df.loc[mask_24, "datetime"] = pd.to_datetime(
+        df.loc[mask_24, "date"], format="%Y/%m/%d"
+    ) + pd.Timedelta(hours=23)
 
     # 2. Localizar en Europe/Madrid (gestiona DST automáticamente)
     #df["datetime"] = df["datetime"].apply(lambda dt: local_tz.localize(dt))
