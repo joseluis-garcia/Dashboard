@@ -24,8 +24,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # =========================
 # FUNCIÓN DE DESCARGA indicadores ESIOS
 # =========================
+
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent.parent.parent  # ajusta los .parent según tu estructura
+sys.path.insert(0, str(BASE_DIR))
+
 from dashboard.comun.load_secrets import load_secrets
-load_secrets(levels_up=3)  # Carga secrets y parchea st.secrets antes de cualquier import
+load_secrets(base_dir=BASE_DIR)  # Carga secrets y parchea st.secrets antes de cualquier import
 
 import streamlit as st 
 

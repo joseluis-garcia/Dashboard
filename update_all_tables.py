@@ -4,8 +4,14 @@ Ejecuta todas las actualizaciones de tablas de forma secuencial,
 reportando errores al final sin detener el proceso.
 """
 
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent.parent  # ajusta los .parent según tu estructura
+sys.path.insert(0, str(BASE_DIR))
+
 from dashboard.comun.load_secrets import load_secrets
-load_secrets(levels_up=3)
+load_secrets(base_dir=BASE_DIR)
 
 from dashboard.comun.get_ESIOS_data import update_ESIOS_history
 from dashboard.comun.get_openmeteo import update_openmeteo_history

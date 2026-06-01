@@ -9,8 +9,14 @@ Proporciona funciones
 - getPowerMeasurements: Obtiene las mediciones de potencia para cada canal del medidor registrado en WIBEE en un rango de fechas especificado
 - update_WIBEE_data: Actualiza la tabla WIBEE con los datos de producción de energía desde la última fecha registrada hasta la fecha actual
 """
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent.parent.parent.parent  # ajusta los .parent según tu estructura
+sys.path.insert(0, str(BASE_DIR))
+
 from dashboard.comun.load_secrets import load_secrets
-load_secrets(levels_up=3)  # Carga secrets y parchea st.secrets antes de cualquier import
+load_secrets(base_dir=BASE_DIR)  # Carga secrets y parchea st.secrets antes de cualquier import
 
 import streamlit as st 
 import sqlite3

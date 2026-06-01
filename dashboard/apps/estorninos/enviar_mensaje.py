@@ -4,8 +4,14 @@ El envío del mensaje se realiza a través de Telegram, utilizando un bot y un c
 Los datos de TG estan en st.secrets para evitar exponerlos en el código. El mensaje se envía solo si la clave "TG_active" en secrets está activada (True).
 """
 
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent.parent.parent.parent  # ajusta los .parent según tu estructura
+sys.path.insert(0, str(BASE_DIR))
+
 from dashboard.comun.load_secrets import load_secrets
-load_secrets(levels_up=3)  # Carga secrets y parchea st.secrets antes de cualquier import
+load_secrets(base_dir=BASE_DIR)  # Carga secrets y parchea st.secrets antes de cualquier import
 
 import streamlit as st
 import jenkspy 

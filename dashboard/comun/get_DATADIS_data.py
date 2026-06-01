@@ -4,13 +4,18 @@ import pandas as pd
 import requests
 from datetime import datetime, timedelta
 import pytz
+import streamlit as st 
+
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent.parent.parent  # ajusta los .parent según tu estructura
+sys.path.insert(0, str(BASE_DIR))
 
 from dashboard.comun.date_conditions import RangoFechas
 from dashboard.comun.load_secrets import load_secrets
 from dashboard.comun.sql_utilities import init_db, read_sql_ts
-load_secrets(levels_up=3)  # Carga secrets y parchea st.secrets antes de cualquier import
-
-import streamlit as st 
+load_secrets(base_dir=BASE_DIR)  # Carga secrets y parchea st.secrets antes de cualquier import
 
 cups =""
 pointType = ""
