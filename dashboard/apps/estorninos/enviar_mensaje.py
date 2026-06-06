@@ -16,6 +16,7 @@ load_secrets(base_dir=BASE_DIR)  # Carga secrets y parchea st.secrets antes de c
 import streamlit as st
 import jenkspy 
 import re
+import pandas as pd
 from datetime import date
 
 # A partir de aquí todos los imports leen st.secrets normalmente

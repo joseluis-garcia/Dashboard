@@ -7,6 +7,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from dashboard.comun.costes_regulados import costes_regulados
 from dashboard.comun.get_ESIOS_data import get_ESIOS_spot
 from dashboard.comun.get_Som_data import get_prices_Som_indexada
 from dashboard.comun.date_conditions import get_cache_period
@@ -55,6 +56,19 @@ def grafico_prices_Som() -> Tuple[go.Figure, Optional[str]]:
     local = df_omie.tz_convert("Europe/Madrid")
     # Asegurar que las horas estén en formato numérico
     df_omie["hora_num"] = local.index.hour + local.index.minute / 60
+
+    print(df_omie.head())
+
+    if df["hoy"].isna().all():
+        fuente = "Mercado SPOT"
+        df_omie = costes_regulados(df_omie)
+        df_omie['hoy_omie'] = df_omie["Mercado SPOT"]/1000 + df_omie["costes_regulados"]/1000
+        df = df.merge(df_omie, left_on="hora", right_on="hora_num", how="left")
+        df = df.drop(columns=["hora_num", "hoy"])
+        df = df.rename(columns={"hoy_omie": "hoy"})
+    else:
+        fuente = "SOM Energía"
+
     # Nos quedamos con las horas de precios negativos
     df_omie=df_omie[df_omie["Mercado SPOT"]<0]
     
@@ -146,11 +160,12 @@ def grafico_prices_Som() -> Tuple[go.Figure, Optional[str]]:
     )
 
     fig.update_layout(
+        title=f"Precios indexados - Fuente: {fuente}",
         xaxis_title="Hora",
         yaxis_title="€/kWh",
         bargap=0.1,
         template="plotly_white",
-        margin=dict(l=0, r=0, t=0, b=0),
+        margin=dict(l=0, r=0, t=20, b=0),
         legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"),
         autosize=True,
         height=400

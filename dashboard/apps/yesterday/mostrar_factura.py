@@ -89,11 +89,9 @@ def mostrar_factura(conn, month, year, source):
         
         print("Datos de precios SOM:\n", tabla, prices_Som.head())
 
-        col = '"Mercado SPOT"'
-        if year <= 2024:
-            query = f"SELECT datetime, {col} from  ESIOS_price where  datetime >= '{start_utc}' and datetime <= '{end_utc}'"
-        else:
-            query = f"SELECT datetime, {col} from  ESIOS_data where datetime >= '{start_utc}' and datetime <= '{end_utc}'"
+
+        query = f'SELECT datetime, "Mercado SPOT", PVPC from  ESIOS_prices where  datetime >= \'{start_utc}\' and datetime <= \'{end_utc}\''
+
         prices_SPOT, error = read_sql_ts(query, conn)
         if error:
             raise ValueError(f"Error al cargar datos de precios SPOT: {error}")
@@ -105,22 +103,23 @@ def mostrar_factura(conn, month, year, source):
 
         #El precio de los excedentes de SPOT viene €/MWh, lo pasamos a €/kWh
         prices_SPOT['Mercado SPOT'] = prices_SPOT['Mercado SPOT'] / 1000
-
+        prices_SPOT['PVPC'] = prices_SPOT['PVPC'] / 1000
         #Estas tarifas son fijas pero deberiamos sacarlas del API terifas de Som   
         prices_20TD = {'P1':0.229,'P2':0.153,'P3':0.125, 'Excedente':0.03}
 
         df_cost = energy.join([prices_Som, prices_SPOT], how='inner')
 
-        print("Costes1", df_cost)
-
         def calcular_coste(row):
             consumo = row['consumo']
             excedente = row['excedente']
             precio_cargo = row['price']
+            precio_PVPC = row['PVPC']
+            #print(f"excedente: {excedente}, PVPC: {precio_PVPC}, consumo: {consumo}")
             if excedente > 0:
                 return pd.Series({
                     'cargo': 0,
                     'cargo_20TD': 0,
+                    'cargo_PVPC': 0,
                     'compensacion': excedente * row['Mercado SPOT'],
                     'compensacion_20TD': excedente * prices_20TD['Excedente']
                 })
@@ -128,18 +127,17 @@ def mostrar_factura(conn, month, year, source):
                 return pd.Series({
                     'cargo': consumo * precio_cargo,
                     'cargo_20TD': consumo * prices_20TD[row['tarifa']],
+                    'cargo_PVPC': consumo * precio_PVPC,
                     'compensacion': 0,
                     'compensacion_20TD': 0
                 })
-            
-        print("Costes", df_cost.head())
-            
-        df_cost[['cargo', 'cargo_20TD','compensacion','compensacion_20TD']] = df_cost.apply(calcular_coste, axis=1)
+
+        df_cost = df_cost.drop(columns=["solar_Wh", "extra_Wh", "extra", "local_time", "general_Wh"])      
+        df_cost[['cargo', 'cargo_20TD','cargo_PVPC','compensacion','compensacion_20TD']] = df_cost.apply(calcular_coste, axis=1)
         df_monthly = df_cost
 
-        print("Monthly costs:", df_monthly.head())
-
         euro_coste = df_monthly['cargo'].sum()
+        euro_PVPC = df_monthly['cargo_PVPC'].sum()
         euro_coste_20TD = df_monthly['cargo_20TD'].sum()
         euro_excedente = df_monthly['compensacion'].sum()
         euro_excedente_20TD = df_monthly['compensacion_20TD'].sum()
@@ -160,7 +158,7 @@ def mostrar_factura(conn, month, year, source):
         reporte += f"Energía total consumida: {total_energy:.2f} kWh\n\n"
         reporte += f"Precio de la energía indexada: {euro_coste:.2f} €\n\n"
         reporte += f"Precio de la energía 2.0TD: {euro_coste_20TD:.2f} €\n\n"
-
+        reporte += f"Precio de la energía PVPC: {euro_PVPC:.2f} €\n\n"
         reporte += f"Bono social: {bono_social:.2f} €\n\n"
 
         reporte += f"Energía total excedentaria: {total_excedente:.2f} kWh\n\n"

@@ -7,7 +7,7 @@ reportando errores al final sin detener el proceso.
 import sys
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent.parent  # ajusta los .parent según tu estructura
+BASE_DIR = Path(__file__).parent  # ajusta los .parent según tu estructura
 sys.path.insert(0, str(BASE_DIR))
 
 from dashboard.comun.load_secrets import load_secrets

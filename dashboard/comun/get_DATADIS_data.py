@@ -140,7 +140,7 @@ def update_DATADIS_history(conn: Optional[sqlite3.Connection] = None) -> Tuple[
 
     #Previous data recorded until
     df = pd.read_sql_query("SELECT MAX(datetime) as maxDate FROM DATADIS", conn, parse_dates=["maxDate"])
-    df["maxDate"] = pd.to_datetime(df["maxDate"])
+    df["maxDate"] = pd.to_datetime(df["maxDate"].iloc[0], utc=True)
     maxDate = df["maxDate"].iloc[0]
 
     year = maxDate.year
@@ -154,7 +154,8 @@ def update_DATADIS_history(conn: Optional[sqlite3.Connection] = None) -> Tuple[
         month = 12
     month = f"{month:02d}"
 
-    endDate = f"{year}/{month}"
+    endDate = f"{year}/{month}" 
+    
     print("Getting data from DATADIS: " + startDate + " to " + endDate)
 
     email = st.secrets.get("DATADIS_email")
@@ -177,7 +178,6 @@ def update_DATADIS_history(conn: Optional[sqlite3.Connection] = None) -> Tuple[
         return None, error
 
     df=pd.json_normalize(measurements,'timeCurve')
-    print("Obtenido de DATADIS\n", df.head())
 
     local_tz = pytz.timezone("Europe/Madrid")
 
@@ -199,19 +199,21 @@ def update_DATADIS_history(conn: Optional[sqlite3.Connection] = None) -> Tuple[
     #df["datetime"] = df["datetime"].apply(lambda dt: local_tz.localize(dt))
     df["datetime"] = (
         df["datetime"]
-        .dt.tz_localize("Europe/Madrid", ambiguous='infer')  # gestionar DST automáticamente
+        .dt.tz_localize("Europe/Madrid", ambiguous='infer', nonexistent='shift_forward')  # gestionar DST automáticamente
         .dt.tz_convert("UTC")
+        .dt.tz_localize(None)
     )
 
     #Conierte unidades a kWh
     df["consumption_Wh"] = df["consumptionKWh"] * 1000
     df["surplus_Wh"] = df["surplusEnergyKWh"] * 1000
-    df.drop(columns=["time","cups","consumptionKWh","obtainMethod","surplusEnergyKWh","generationEnergyKWh","selfConsumptionEnergyKWh"], inplace=True)
+    df.drop(columns=["time","cups","consumptionKWh","obtainMethod","surplusEnergyKWh","generationEnergyKWh","selfConsumptionEnergyKWh", "date"], inplace=True)
 
+    #df.to_csv("datadis_raw.csv", index=False)  # Guardar CSV para depuración
 
     df = df[(df["datetime"] > maxDate) & (df["surplus_Wh"].notna())]
 
-    print("A insertar en SQLite\n", df.head(), df.tail())
+    #print("A insertar en SQLite\n", df.head(), df.tail())
     # Insert data into the table
     df.to_sql('DATADIS', conn,if_exists="append", index=False)
 

@@ -175,7 +175,7 @@ elif pagina == "Ajustes":
     st.write("Datos actalización de tablas")
     
     st.write("### Tabla con acciones por fila")
-    tables = ['DATADIS',"PVGIS", "SOM_precio_indexada", "WIBEE", "METEO", "ESIOS_data"]
+    tables = ['DATADIS',"PVGIS", "SOM_precio_indexada", "WIBEE", "METEO", "ESIOS_data", "ESIOS_prices"]
     df, error = db.get_tables_info(conn, tables)
     if error:
         st.error(f"Error al obtener información de tablas: {error}")
@@ -242,4 +242,12 @@ elif pagina == "Ajustes":
                         hasta = df['datetime'].max().strftime("%Y-%m-%d %H:%M")
                         resultado = f"{len(df)} filas insertadas en ESIOS_data desde {desde} hasta {hasta}"
                         placeholder.success(resultado)
-
+                if idx == 6:
+                    df, error = update_ESIOS_history(conn)
+                    if error:
+                        placeholder.error(error)
+                    else:
+                        desde = df['datetime'].min().strftime("%Y-%m-%d %H:%M")
+                        hasta = df['datetime'].max().strftime("%Y-%m-%d %H:%M")
+                        resultado = f"{len(df)} filas insertadas en ESIOS_prices desde {desde} hasta {hasta}"
+                        placeholder.success(resultado)

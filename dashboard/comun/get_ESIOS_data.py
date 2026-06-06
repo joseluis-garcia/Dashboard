@@ -359,17 +359,25 @@ def update_ESIOS_history(conn: Optional[sqlite3.Connection] = None) -> Tuple[
             'start_date': strStartDate,
             'end_date': strEndDate
         }
+        print(f"Actualizando ESIOS_data desde {rango['start_date']} hasta {rango['end_date']}")
         df_prices, error = get_ESIOS_prices_history(rango)
+
         if error:
             return None, error
-        df_prices["datetime"] = pd.to_datetime(df_prices["datetime"], utc=True).dt.tz_localize(None)
-        df_prices.to_sql('ESIOS_prices', conn, if_exists='append', index=False )
+
+        df_prices.index = df_prices.index.tz_convert(None)
+
+        df_prices = df_prices.rename(columns={"PVPC T. 2.0TD": "PVPC","Precio de la energía excedentaria": "Excedentes"})
+
+        df_prices.to_sql('ESIOS_prices', conn, if_exists='append', index=True, index_label='datetime' )
 
         df_energy, error = get_ESIOS_energy_history(rango)
         if error:
             return None, error
-        df_energy["datetime"] = pd.to_datetime(df_energy["datetime"], utc=True).dt.tz_localize(None)      
-        df_energy.to_sql('ESIOS_data', conn, if_exists='append', index=False )
+        
+        df_energy.index = df_energy.index.tz_convert(None)
+   
+        df_energy.to_sql('ESIOS_data', conn, if_exists='append', index=True, index_label='datetime' )
 
         return None, None
 
@@ -410,9 +418,8 @@ def get_ESIOS_data_from_measurements(conn: sqlite3.Connection, rango: Optional[R
 if __name__ == "__main__":
     _, error = update_ESIOS_history()
 
-    conn, error = init_db()
     if error:
-        print(f"Error al conectar a la base de datos: {error}")
+        print(f"Error actualizando datos de ESIOS: {error}")
 
 
 __all__ = [
