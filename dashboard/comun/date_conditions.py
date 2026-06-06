@@ -42,6 +42,8 @@ today: Optional[datetime] = None
 festivos: List[datetime] = []
 weekends: List[Tuple[Union[pd.Timestamp, datetime], Union[pd.Timestamp, datetime]]] = []
 
+MESES = ["enero","febrero","marzo","abril","mayo","junio",
+         "julio","agosto","septiembre","octubre","noviembre","diciembre"]
 
 def date_conditions_init(rango: RangoFechas) -> None:
     """

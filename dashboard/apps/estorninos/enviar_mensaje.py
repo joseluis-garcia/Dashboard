@@ -23,7 +23,7 @@ from datetime import date
 from dashboard.comun.get_ESIOS_data import get_ESIOS_spot
 from dashboard.comun.get_openmeteo import get_meteo_today
 from dashboard.comun.mensaje import send_TG_message
-from dashboard.comun.date_conditions import get_estacion, horas_a_texto
+from dashboard.comun.date_conditions import get_estacion, horas_a_texto, MESES
 from dashboard.comun.costes_regulados import costes_regulados
 
 def escape_md(text: str) -> str:
@@ -105,7 +105,9 @@ def calcular_mensaje() -> str:
     df_meteo = get_meteo_today()  # Madrid
     fecha = date.today()
     estacion = get_estacion(fecha)
-    str_fecha = fecha.strftime("%d de %B de %Y").lstrip("0")
+
+    str_fecha = f"{fecha.day} de {MESES[fecha.month-1]} de {fecha.year}"
+    #str_fecha = fecha.strftime("%d de %B de %Y").lstrip("0")
 
     # Aquí va la lógica para calcular el mensaje basado en los datos de ESIOS u otras fuentes
     mensaje = escape_md(f"¡Hola! Este es un mensaje para Estorninos.\nHoy es: {str_fecha}.\n")
