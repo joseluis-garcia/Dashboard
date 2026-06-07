@@ -26,16 +26,17 @@ from dashboard.comun.mensaje import send_TG_message
 from dashboard.comun.date_conditions import get_estacion, horas_a_texto, MESES
 from dashboard.comun.costes_regulados import costes_regulados
 
-def escape_md(text: str) -> str:
+def escape_md(text: str, destino: str = "Telegram") -> str:
     '''
     Escapa caracteres especiales de Markdown en un texto para evitar que se interpreten como formato en Telegram.
     Args:
         text: Texto a escapar
-        Returns: Texto escapado
+        destino: Destino del mensaje ("Telegram" o "Streamlit")
+        Returns: Texto escapado o sin cambiar si el destino no es Telegram
     '''
+    if destino != "Telegram":
+        return text
     return re.sub(r'([_\*\[\]()~`>#+=|{}.!\-])', r'\\\1', text)
-
-
 
 def clasificar_precios(precios: pd.Series, n_clases: int = 3) -> pd.Series:
     breaks = jenkspy.jenks_breaks(precios.values, n_classes=n_clases)
@@ -47,7 +48,7 @@ def clasificar_precios(precios: pd.Series, n_clases: int = 3) -> pd.Series:
         include_lowest=True
     )
 
-def calcular_mensaje() -> str:
+def calcular_mensaje(destino = "Telegram") -> str:
     '''
     Calcula el mensaje a enviar a Estorninos con la información relevante del día.
     Obtiene datos de ESIOS para detectar horas con precios de excedentes negativos, precios muy bajos y muy altos. También obtiene la previsión meteorológica de OpenMeteo para incluirla en el mensaje.
@@ -110,29 +111,18 @@ def calcular_mensaje() -> str:
     #str_fecha = fecha.strftime("%d de %B de %Y").lstrip("0")
 
     # Aquí va la lógica para calcular el mensaje basado en los datos de ESIOS u otras fuentes
-    mensaje = escape_md(f"¡Hola! Este es un mensaje para Estorninos.\nHoy es: {str_fecha}.\n")
+    mensaje = escape_md(f"¡Hola! Este es un mensaje para Estorninos.\nHoy es: {str_fecha}.\n", destino)
 
 
     # Reemplazar el bloque meteorológico del mensaje por esto:
-    mensaje += escape_md(f"Estamos en {estacion} y el clima de hoy en España es:\n")
+    mensaje += escape_md(f"Estamos en {estacion} y el clima de hoy en España es:\n", destino)
     mensaje += "─" * 20
 
     for _, row in df_meteo.iterrows():
-        # mensaje += f"\n*{escape_md(row['ciudad'])}*\n"
-        # mensaje += "\n```\n"
-        # mensaje += (
-        #     f"{row['weather_icon']+'  '+row['weather_desc']:<18}"
-        #     f"\nTemperatura desde {row['temperature_2m_min']:>4.1f}°"
-        #     f" hasta {row['temperature_2m_max']:>4.1f}°"
-        #     f"\nSol 🌅{row['sunrise']:>6} "
-        #     f" 🌇{row['sunset']:>6}"
-        # )
-        # mensaje += "\n```\n"
-
-        mensaje += f"\n*{escape_md(row['ciudad'])}*\n"
-        mensaje += "`" + escape_md(f"{row['weather_icon']} {row['weather_desc']}\n") + "`"
-        mensaje += escape_md(f"🌡 {row['temperature_2m_min']:.1f}° – {row['temperature_2m_max']:.1f}°C\n")
-        mensaje += escape_md(f"🌅 {row['sunrise']}  🌇 {row['sunset']}\n")
+        mensaje += f"\n*{escape_md(row['ciudad'], destino)}*\n"
+        mensaje += "`" + escape_md(f"{row['weather_icon']} {row['weather_desc']}\n", destino) + "`"
+        mensaje += escape_md(f"🌡 {row['temperature_2m_min']:.1f}° – {row['temperature_2m_max']:.1f}°C\n", destino)
+        mensaje += escape_md(f"🌅 {row['sunrise']}  🌇 {row['sunset']}\n", destino)
     mensaje += "\n"
 
     # mensaje += f"Las horas con precios mas bajos (por debajo del 10% de los precios) serán: {horas_barato_str}.\n"
@@ -144,26 +134,26 @@ def calcular_mensaje() -> str:
 
 
     # Bloque de precios compacto
-    mensaje += escape_md(f"💰 Precios electricidad hoy\n")
+    mensaje += escape_md(f"💰 Precios electricidad hoy\n", destino)
     mensaje += "─" * 20 + "\n"
-    mensaje += escape_md(f"🟢 Baratos -> {horas_barato_str}\n")
-    mensaje += escape_md(f"💰 {precios_baratos_str}\n")
-    mensaje += escape_md(f"🔴 Caros -> {horas_caro_str}\n")
-    mensaje += escape_md(f"💰 {precios_caros_str}\n")
+    mensaje += escape_md(f"🟢 Baratos -> {horas_barato_str}\n", destino)
+    mensaje += escape_md(f"💰 {precios_baratos_str}\n", destino)
+    mensaje += escape_md(f"🔴 Caros -> {horas_caro_str}\n", destino)
+    mensaje += escape_md(f"💰 {precios_caros_str}\n", destino)
     if not df_negativos.empty:
-        mensaje += escape_md(f"⚡ Excedentes negativos -> {horas_negativo_str}\n")
+        mensaje += escape_md(f"⚡ Excedentes negativos -> {horas_negativo_str}\n", destino)
     else:
-        mensaje += escape_md(f"⚡ Sin excedentes negativos\n")
+        mensaje += escape_md(f"⚡ Sin excedentes negativos\n", destino)
 
     
-    mensaje += escape_md("¡Que tengas un buen día! 🌞")
+    mensaje += escape_md("¡Que tengas un buen día! 🌞", destino)
 
     return mensaje
 
 # Calcular y enviar
-mensaje = calcular_mensaje()
+mensaje = calcular_mensaje(destino="Telegram")
 print(f"Se envia mensaje? {st.secrets.get('TG_active')}")
-print(mensaje)
+print(f"Mensaje de hoy: {mensaje}")
 
 if st.secrets.get("TG_active"):
     response, error = send_TG_message(mensaje)

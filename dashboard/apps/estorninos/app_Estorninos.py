@@ -12,6 +12,7 @@ from dashboard.comun.grafico_prices_forecast import grafico_prices_forecast
 from dashboard.apps.estorninos.mostrar_agenda import mostrar_agenda
 from dashboard.apps.estorninos.historico_spot import load_historico_precios_spot
 from dashboard.apps.estorninos.historico_temperaturas import load_historico_temperaturas, grafico_historico_temperaturas, grafico_stress_termico
+from dashboard.apps.estorninos.enviar_mensaje import calcular_mensaje
 from dashboard.comun.mensaje import show_mensaje
 from dashboard.comun import sql_utilities as db
 
@@ -145,8 +146,10 @@ with tab_algoritmo:
     st.subheader("Algoritmo")
     st.write("En esta página se desarrollará la lógica para el envio de mensajes a los estorninos a mediante el canal de Telegram al que te puedes suscribir siguiendo este enlace https://t.me/+qsGht4W8dZ4yMjU8")
     st.write("A modo de prueba, si estas autorizado, el texto que escribas en este área se enviará a todos los que se hubieran suscrito al canal <Estorninos de Som> en Telegram")
-    comentario = st.text_area("Texto a enviar")
-    # --- Botón principal ---
+    texto = calcular_mensaje(destino="Streamlit")
+    comentario = st.text_area("Mensaje de hoy", value=texto, height=600)
+
+    # --- Botón de envio protegido por password ---
     if st.button("Enviar"):
         if st.session_state["is_admin"]:
             # Ya autenticado, ejecutar directamente
