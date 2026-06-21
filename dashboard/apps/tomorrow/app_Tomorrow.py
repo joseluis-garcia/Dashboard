@@ -44,6 +44,7 @@ if conn is None:
     sys.exit(1)
     
 dc.date_conditions_init(rango)  # Inicializar condiciones de fecha (festivos, fines de semana, hoy)
+st.set_page_config(page_title="Dashboard Tomorrow",layout='wide')
 # =========================
 #Definicion de estilos CSS para hacer el dashboard responsive y convertir los paneles a una sola columna si el ancho de pantalle es < 700px
 # =========================
@@ -102,10 +103,12 @@ if mostrar_precios:
     col1, col2 = st.columns(2)
     # Precios Som Energia
     with col1:
-        st.header("Precios [SOM Energia](https://www.somenergia.coop/es)")
+        st.header("Precios Energia")
         with st.expander("ℹ️ Ver nota"):
             st.write("""
-            Los precios mostrados en este gráfico provienen del API de Som Energía que retorna los precios estimados de la tarifa indexada de la cooperativa para hoy y a partir de las 14:00 los precios para el día de mañana.
+            Los precios mostrados en este gráfico provienen del API de Som Energía que retorna los precios estimados 
+            la tarifa indexada de la cooperativa para hoy y a partir de las 14:00 los precios para el día de mañana. 
+            Si no existieran esas estimaciones se muestran los precios OMIE.
             """)
         fig_precios, error = grafico_prices_Som()
         if error:
@@ -136,7 +139,7 @@ if mostrar_meteo:
     # Panel Forecast 7 dias
     with col1:
         st.header("📅 Forecast 7 dias")
-        fig_meteo_7D, error = grafica_openmeteo(lat,lon,TCB.AZIMUTH)
+        fig_meteo_7D, error = grafica_openmeteo(lat=lat,lon=lon,azimuth=TCB.AZIMUTH)
         if error:
             st.error(error)
         else:
@@ -149,7 +152,7 @@ if mostrar_meteo:
             horas = st.slider("Horizonte horario(h)", 12, 120, 24)
         with col21:
             st.header(f"⏱️ Próximas {horas} horas")
-        fig_horas, error = grafica_openmeteo(lat,lon,TCB.AZIMUTH, time_unit=horas)
+        fig_horas, error = grafica_openmeteo(lat=lat,lon=lon,azimuth=TCB.AZIMUTH, time_unit=horas)
         if error:
             st.error(error)
         else:

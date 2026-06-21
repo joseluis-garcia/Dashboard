@@ -57,8 +57,6 @@ def grafico_prices_Som() -> Tuple[go.Figure, Optional[str]]:
     # Asegurar que las horas estén en formato numérico
     df_omie["hora_num"] = local.index.hour + local.index.minute / 60
 
-    print(df_omie.head())
-
     if df["hoy"].isna().all():
         fuente = "Mercado SPOT"
         df_omie = costes_regulados(df_omie)
