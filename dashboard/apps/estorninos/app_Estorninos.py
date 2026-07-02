@@ -16,6 +16,8 @@ from dashboard.apps.estorninos.enviar_mensaje import calcular_mensaje
 from dashboard.comun.mensaje import show_mensaje
 from dashboard.comun import sql_utilities as db
 
+st.set_page_config(page_title="Dashboard Estorninos",layout='wide')
+
 conn, error = db.init_db()
 if conn is None:
     st.error(f"Error al conectar a la base de datos: {error}")

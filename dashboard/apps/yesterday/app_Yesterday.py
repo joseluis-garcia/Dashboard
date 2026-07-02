@@ -22,6 +22,8 @@ from dashboard.comun.get_WIBEE_data import update_WIBEE_history
 from dashboard.comun.get_DATADIS_data import update_DATADIS_history
 from dashboard.apps.yesterday.analysis_som_spot_correlation import grafico_prediccion_precios
 
+st.set_page_config(page_title="Dashboard Yesterday",layout='wide')
+
 conn, error = db.init_db()
 if conn is None:
     st.error(f"Error al conectar a la base de datos: {error}")
