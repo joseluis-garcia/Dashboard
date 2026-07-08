@@ -194,7 +194,6 @@ def collect_forecast_snapshot(
     df = df.reset_index()
     df = df.rename(columns={df.columns[0]: "datetime"})  # la primera columna tras reset_index() es siempre el antiguo índice
 
-    print("Fetch multi", df.head())
     df = _wide_to_long(df, indicator_ids)
 
     df = df.copy()
@@ -273,7 +272,6 @@ def backfill_real_values(
 
     df = df.reset_index()
     df = df.rename(columns={df.columns[0]: "datetime"})  # la primera columna tras reset_index() es siempre el antiguo índicedf = df.reset_index()
-    print("Fetch real values", df.head())
 
     df = _wide_to_long(df, real_ids)
 
@@ -347,7 +345,8 @@ def main() -> int:
             print(f"  - {name}: {err}")
         return 1
 
-    print("\nTodas las tareas OK.")
+    now = pd.Timestamp.now(tz=TZ).strftime
+    print(f"\n{now}-Todas las tareas OK.")
     return 0
 
 

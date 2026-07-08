@@ -223,7 +223,7 @@ def openmeteo_daily_to_df(response, city_name) -> Dict[str, Any]:
 
 def get_meteo_today()-> pd.DataFrame:
     """
-    Obtiene los datos meteorológicos para el día actual.
+    Obtiene los datos meteorológicos para el día actual en Madrid, Girona y Sevilla
     
     Returns:
         DataFrame con los datos meteorológicos para el día actual
@@ -234,7 +234,7 @@ def get_meteo_today()-> pd.DataFrame:
     """
     # Setup the Open-Meteo API client with cache and retry on error
     cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
-    retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
+    retry_session = retry(cache_session, retries = 5, backoff_factor = 0.5, status_to_retry=(500, 502, 503, 504))
     openmeteo = openmeteo_requests.Client(session = retry_session)
 
     # Make sure all required weather variables are listed here
@@ -299,8 +299,8 @@ def update_openmeteo_history(
 
 	# Setup the Open-Meteo API client with cache and retry on error
     cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
-    retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-    #openmeteo = openmeteo_requests.Client(session = retry_session)
+    retry_session = retry(cache_session, retries = 5, backoff_factor = 0.5, status_to_retry=(500, 502, 503, 504))
+    openmeteo = openmeteo_requests.Client(session = retry_session)
 
 	# Make sure all required weather variables are listed here
 	# The order of variables in hourly or daily is important to assign them correctly below

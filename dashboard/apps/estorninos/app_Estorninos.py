@@ -10,6 +10,7 @@ from dashboard.comun.get_ESIOS_data import get_ESIOS_energy_forecast
 from dashboard.comun.grafico_ESIOS_energy import grafico_ESIOS_energy
 from dashboard.comun.grafico_prices_forecast import grafico_prices_forecast
 from dashboard.apps.estorninos.mostrar_agenda import mostrar_agenda
+from dashboard.apps.estorninos.agenda_ponderada import agenda_ponderada
 from dashboard.apps.estorninos.historico_spot import load_historico_precios_spot
 from dashboard.apps.estorninos.historico_temperaturas import load_historico_temperaturas, grafico_historico_temperaturas, grafico_stress_termico
 from dashboard.apps.estorninos.enviar_mensaje import calcular_mensaje
@@ -92,7 +93,7 @@ st.markdown("""
 st.set_page_config(layout="wide")
 st.title("Visualización de variables ESIOS")
 
-tab_curvas, tab_agenda, tab_algoritmo, tab_precios, tab_temperaturas, tab_stress = st.tabs(["Curvas", "Agenda", "Algoritmo", "Precios", "Temperaturas","Stress térmico"])
+tab_curvas, tab_agenda, tab_agenda_ponderada, tab_algoritmo, tab_precios, tab_temperaturas, tab_stress = st.tabs(["Curvas", "Agenda", "Agenda Ponderada", "Algoritmo", "Precios", "Temperaturas","Stress térmico"])
 
 with tab_curvas:
     st.info(f"Rango de fechas: {rango['start_date']} → {rango['end_date']}")
@@ -136,6 +137,18 @@ with tab_agenda:
         st.error(error)
     else:
         st.plotly_chart(fig_agenda, width='stretch', key="agenda")
+
+with tab_agenda_ponderada:
+    opcion = st.radio("Criterio", ["Precio Estimado", "Renovable", "Combinado"])
+    peso_eco = 0.5
+    if opcion == "Combinado":
+        peso_eco = st.slider("Ahorro ⟷ Ecología", 0.0, 1.0, 0.5, step=0.05)
+
+    fig, error = agenda_ponderada(conn, opcion, peso_eco=peso_eco)
+    if error:
+        st.error(f"Error al cargar datos históricos de precios spot: {error}")
+    else:
+        st.plotly_chart(fig, width='stretch', key="agenda_ponderada")
 
 with tab_algoritmo:
 
