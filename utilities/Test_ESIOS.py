@@ -5,7 +5,7 @@ import pytz
 import pandas as pd
 
 API_TOKEN = "d24bdfb17a69ea6568815918ee3309c3233ab055fe96340da8cd78e71ee9170e"
-indicator_id = 600  # Precio medio diario en España
+indicator_id = 603  # Precio medio diario en España
 url = f"https://api.esios.ree.es/indicators/{indicator_id}"  # indicador
 
 tz = pytz.timezone("Europe/Madrid")
@@ -19,8 +19,8 @@ rango = {
 }
 
 rango = {
-            'start_date': "2024-12-31T23:00:00Z",
-            'end_date': "2025-01-31T22:59:59Z"
+            'start_date': "2026-05-01T23:00:00Z",
+            'end_date': "2026-05-03T22:59:59Z"
 }
 
 

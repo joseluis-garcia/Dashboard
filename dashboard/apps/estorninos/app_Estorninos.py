@@ -14,6 +14,7 @@ from dashboard.apps.estorninos.agenda_ponderada import agenda_ponderada
 from dashboard.apps.estorninos.historico_spot import load_historico_precios_spot
 from dashboard.apps.estorninos.historico_temperaturas import load_historico_temperaturas, grafico_historico_temperaturas, grafico_stress_termico
 from dashboard.apps.estorninos.enviar_mensaje import calcular_mensaje
+from dashboard.apps.estorninos.analisis_forecast import mostrar_tab_analisis_forecast
 from dashboard.comun.mensaje import show_mensaje
 from dashboard.comun import sql_utilities as db
 
@@ -93,7 +94,7 @@ st.markdown("""
 st.set_page_config(layout="wide")
 st.title("Visualización de variables ESIOS")
 
-tab_curvas, tab_agenda, tab_agenda_ponderada, tab_algoritmo, tab_precios, tab_temperaturas, tab_stress = st.tabs(["Curvas", "Agenda", "Agenda Ponderada", "Algoritmo", "Precios", "Temperaturas","Stress térmico"])
+tab_curvas, tab_agenda, tab_agenda_ponderada, tab_algoritmo, tab_precios, tab_temperaturas, tab_stress, tab_calidad = st.tabs(["Curvas", "Agenda", "Agenda Ponderada", "Algoritmo", "Precios", "Temperaturas","Stress térmico", "Calidad"])
 
 with tab_curvas:
     st.info(f"Rango de fechas: {rango['start_date']} → {rango['end_date']}")
@@ -279,3 +280,10 @@ with tab_stress:
     # st.subheader("Mapa de temperaturas y precios históricos")
     # st.plotly_chart(fig_comb, width='stretch', key="resumen")
 
+#
+with tab_calidad:
+    st.subheader("Calidad de las previsiones")
+    st.caption("Análisis de la calidad de las previsiones ESIOS")
+
+    mostrar_tab_analisis_forecast(db_path="/mnt/datos/proyectos/dashboard/dashboard/data/forecast_tracker.db")
+#

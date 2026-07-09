@@ -148,3 +148,5 @@ data/*.db-journal
 *.pkl
 .cache.sqlite
 Revision_Codigo_Dashboard_Energetico.docx
+dashboard.db
+dashboard/data/forecast_tracker.db

@@ -48,7 +48,7 @@ from dashboard.comun.get_ESIOS_data import fetch_multiple_indicators# ----------
 TZ = "Europe/Madrid"
 
 # AJUSTAR: ruta real de tu base de datos
-DB_PATH = Path("/mnt/datos/proyectos/dashboard/data/dashboard.db")
+DB_PATH = Path("/mnt/datos/proyectos/dashboard/dashboard/data/forecast_tracker.db")
 
 # Nombre corto de columna tal y como lo devuelve fetch_multiple_indicators.
 # OJO: 542 y 1295 difieren solo en la mayúscula de la "f" ("Fotovoltaica" vs
@@ -60,14 +60,14 @@ INDICATOR_NAMES = {
     603: "Previsión semanal",   # previsión de demanda
     551: "Eólica",
     1295: "Solar fotovoltaica",
-    600: "Mercado SPOT",        # demanda real
+    1293: "Demanda real",        # demanda real
 }
 
 # Mapeo indicador de previsión -> indicador de valor real/final
 FORECAST_TO_REAL = {
     541: 551,   # eólica
     542: 1295,  # solar
-    603: 600,   # demanda
+    603: 1293,   # demanda
 }
 
 DAYS_AHEAD = 9  # horizonte máximo publicado por ESIOS para estos indicadores
@@ -211,11 +211,13 @@ def collect_forecast_snapshot(
     out = df[["indicator_id", "fetch_ts", "target_datetime", "horizon_hours", "value"]]
     out = out.dropna(subset=["value"])
 
-    rows = out.to_records(index=False).tolist()
-    # normaliza Timestamps a string ISO para el INSERT
+    out = out.copy()
+    out["fetch_ts"] = out["fetch_ts"].dt.strftime("%Y-%m-%d %H:%M:%S")
+    out["target_datetime"] = out["target_datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
     rows = [
-        (int(ind), str(fts), str(tgt), float(h), float(v) if v is not None else None)
-        for ind, fts, tgt, h, v in rows
+        (int(ind), fts, tgt, float(h), float(v) if v is not None else None)
+        for ind, fts, tgt, h, v in out.itertuples(index=False, name=None)
     ]
 
     conn.executemany(
@@ -282,10 +284,12 @@ def backfill_real_values(
     df["datetime"] = df["datetime"].dt.tz_convert(TZ)
     df["datetime"] = _strip_tz(df["datetime"])
     df = df.dropna(subset=["value"])
+    df = df.copy()
+    df["datetime_str"] = df["datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
     rows = [
-        (int(ind), str(dt), float(v))
-        for ind, dt, v in df[["indicator_id", "datetime", "value"]].to_records(index=False)
+        (int(ind), dt, float(v))
+        for ind, dt, v in df[["indicator_id", "datetime_str", "value"]].itertuples(index=False, name=None)
     ]
 
     conn.executemany(
@@ -332,7 +336,7 @@ def main() -> int:
 
     tasks = [
         ("Snapshot previsiones (541/542/603)", lambda conn: collect_forecast_snapshot(conn=conn)),
-        ("Backfill valores reales (551/1295/600)", lambda conn: backfill_real_values(conn=conn)),
+        ("Backfill valores reales (551/1295/1293)", lambda conn: backfill_real_values(conn=conn)),
     ]
 
     results = _run_tasks(tasks, conn)
@@ -345,8 +349,8 @@ def main() -> int:
             print(f"  - {name}: {err}")
         return 1
 
-    now = pd.Timestamp.now(tz=TZ).strftime
-    print(f"\n{now}-Todas las tareas OK.")
+    now = pd.Timestamp.now(tz=TZ).strftime("%Y-%m-%d %H:%M:%S")
+    print(f"\n{now} - Todas las tareas OK.")
     return 0
 
 
