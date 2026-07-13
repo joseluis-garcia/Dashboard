@@ -182,6 +182,10 @@ def grafico_stress_termico(temp_matrix, tFrio=15, tCalor=28):
         else None
     )
 
+
+    print(f"Stress térmico calculado desde: {stress_combined.index[0]} hasta {stress_combined.index[-1]}, {len(stress_combined)} registros")
+    print("Stress_combined:", stress_combined.head())
+
     # Matriz de texto para el tooltip
     def stress_text(t):
         if pd.isna(t):
@@ -237,4 +241,110 @@ def grafico_stress_termico(temp_matrix, tFrio=15, tCalor=28):
         )
     )
 
-    return fig_stress
+    return fig_stress, stress_combined
+
+def calcular_stress_mensual(stress_combined: pd.DataFrame) -> pd.DataFrame:
+    """
+    A partir de stress_combined (index=fecha, columnas=0..23 con la
+    diferencia de temperatura respecto al límite), calcula la suma mensual
+    de los valores positivos (calor) y negativos (frío) por separado, para
+    comparar la intensidad de olas de calor/frío entre años.
+    """
+    df = stress_combined.copy()
+    df.index = pd.to_datetime(df.index)
+
+    # clip(lower=0) anula los negativos -> solo queda la parte de calor
+    # clip(upper=0) anula los positivos -> solo queda la parte de frío (negativa)
+    calor_diario = df.clip(lower=0).sum(axis=1)
+    frio_diario = df.clip(upper=0).sum(axis=1)
+
+    resumen = pd.DataFrame({"calor": calor_diario, "frio": frio_diario})
+    resumen["year"] = resumen.index.year
+    resumen["month"] = resumen.index.month
+
+    mensual = (
+        resumen.groupby(["year", "month"])[["calor", "frio"]]
+        .sum()
+        .reset_index()
+    )
+    return mensual
+
+import plotly.graph_objects as go
+import plotly.express as px
+
+MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+         "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+
+def graficar_stress_mensual(mensual: pd.DataFrame) -> go.Figure:
+    mensual = mensual.copy()
+    mensual["mes_nombre"] = mensual["month"].map(lambda m: MESES[m - 1])
+
+    years = sorted(mensual["year"].unique())
+    colores_calor = px.colors.sample_colorscale("OrRd", [i / max(len(years)-1, 1) for i in range(len(years))])
+    colores_frio = px.colors.sample_colorscale("Blues", [i / max(len(years)-1, 1) for i in range(len(years))])
+
+    fig = go.Figure()
+    for i, year in enumerate(years):
+        sub = mensual[mensual["year"] == year].sort_values("month")
+        fig.add_trace(go.Bar(
+            x=sub["mes_nombre"], y=sub["calor"],
+            name=f"{year} calor",
+            marker_color=colores_calor[i],
+            legendgroup=str(year), offsetgroup=str(year),
+        ))
+        fig.add_trace(go.Bar(
+            x=sub["mes_nombre"], y=sub["frio"],
+            name=f"{year} frío",
+            marker_color=colores_frio[i],
+            legendgroup=str(year), offsetgroup=str(year),
+        ))
+
+    fig.update_layout(
+        barmode="relative",  # apila calor (+) y frío (-) dentro de cada offsetgroup
+        xaxis=dict(categoryorder="array", categoryarray=MESES),
+        yaxis_title="Grados-hora acumulados por encima/debajo del límite",
+        legend_title="Año",
+    )
+    fig.add_hline(y=0, line_color="gray", line_width=1)
+    return fig
+
+def graficar_stress_mensual_lineas(mensual: pd.DataFrame) -> go.Figure:
+    mensual = mensual.copy()
+    mensual["mes_nombre"] = mensual["month"].map(lambda m: MESES[m - 1])
+
+    years = sorted(mensual["year"].unique())
+    # colores = px.colors.sample_colorscale("Turbo", [i / max(len(years) - 1, 1) for i in range(len(years))])
+
+    paleta = px.colors.qualitative.Vivid
+    colores = {year: paleta[i % len(paleta)] for i, year in enumerate(years)}
+
+    fig = go.Figure()
+    for i, year in enumerate(years):
+        sub = mensual[mensual["year"] == year].sort_values("month")
+        color = colores[year]
+
+        fig.add_trace(go.Scatter(
+            x=sub["mes_nombre"], y=sub["calor"],
+            mode="lines+markers",
+            name=f"{year}",
+            legendgroup=str(year),
+            line=dict(color=color, width=2),
+            marker=dict(symbol="triangle-up"),
+        ))
+        fig.add_trace(go.Scatter(
+            x=sub["mes_nombre"], y=sub["frio"],
+            mode="lines+markers",
+            name=f"{year}",
+            legendgroup=str(year),
+            line=dict(color=color, width=2, dash="dot"),
+            marker=dict(symbol="triangle-down"),
+            showlegend=False,  # ya se muestra en la línea de calor del mismo año
+        ))
+
+    fig.update_layout(
+        xaxis=dict(categoryorder="array", categoryarray=MESES),
+        yaxis_title="Grados-hora acumulados por encima/debajo del límite",
+        legend_title="Año",
+    )
+    fig.add_hline(y=0, line_color="gray", line_width=1)
+    return fig

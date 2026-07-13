@@ -12,7 +12,7 @@ from dashboard.comun.grafico_prices_forecast import grafico_prices_forecast
 from dashboard.apps.estorninos.mostrar_agenda import mostrar_agenda
 from dashboard.apps.estorninos.agenda_ponderada import agenda_ponderada
 from dashboard.apps.estorninos.historico_spot import load_historico_precios_spot
-from dashboard.apps.estorninos.historico_temperaturas import load_historico_temperaturas, grafico_historico_temperaturas, grafico_stress_termico
+from dashboard.apps.estorninos.historico_temperaturas import calcular_stress_mensual, graficar_stress_mensual, graficar_stress_mensual_lineas, load_historico_temperaturas, grafico_historico_temperaturas, grafico_stress_termico
 from dashboard.apps.estorninos.enviar_mensaje import calcular_mensaje
 from dashboard.apps.estorninos.analisis_forecast import mostrar_tab_analisis_forecast
 from dashboard.comun.mensaje import show_mensaje
@@ -223,9 +223,16 @@ with tab_stress:
 
     st.write(f"El mapa de stress térmico se calcula a partir de las temperaturas históricas, asignando a cada hora un valor con la diferencia {tMin} - tºC si t < {tMin} y tºC - {tMax} si t >= {tMax}. Las horas con temperaturas confortables entre {tMin} y {tMax} no se representan en el mapa de stress.")
 
-    fig_stress = grafico_stress_termico(temp_matrix, tMin, tMax)
+    fig_stress, stress_combined = grafico_stress_termico(temp_matrix, tMin, tMax)
     st.plotly_chart(fig_stress, width='stretch', key="stress")
 
+    stress_mensual = calcular_stress_mensual(stress_combined)
+    fig_stress_mensual_lineas = graficar_stress_mensual_lineas(stress_mensual)
+    fig_stress_mensual = graficar_stress_mensual(stress_mensual)
+    st.subheader("Stress térmico mensual")
+    st.write("El stress térmico mensual se calcula sumando el stress térmico de cada hora del mes. Se representa en un mapa de calor y en un gráfico de líneas para ver la evolución a lo largo del año.")
+    st.plotly_chart(fig_stress_mensual, width='stretch', key="stress_mensual")
+    st.plotly_chart(fig_stress_mensual_lineas, width='stretch', key="stress_mensual_lineas")
 # with tab_summary:
 #     # Crear subplots con eje Y compartido
 #     fig_comb = make_subplots(
