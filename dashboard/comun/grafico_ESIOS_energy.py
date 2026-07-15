@@ -95,6 +95,17 @@ def grafico_ESIOS_energy(df_energia: pd.DataFrame) -> go.Figure:
         )
     )
 
+    # Línea vertical para marcar el día actual
+
+    fig.add_hline(
+        y=100,
+        line_width=2,
+        line_dash="dash",
+        line_color="tomato",
+        name="100%",
+        yref="y2"
+    )
+
     # Asegurar que la línea de renovables queda por encima
     fig.data[-1].update(zorder=10)
 

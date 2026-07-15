@@ -182,10 +182,6 @@ def grafico_stress_termico(temp_matrix, tFrio=15, tCalor=28):
         else None
     )
 
-
-    print(f"Stress térmico calculado desde: {stress_combined.index[0]} hasta {stress_combined.index[-1]}, {len(stress_combined)} registros")
-    print("Stress_combined:", stress_combined.head())
-
     # Matriz de texto para el tooltip
     def stress_text(t):
         if pd.isna(t):

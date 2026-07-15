@@ -80,10 +80,11 @@ def _error_por_horizonte_long(df: pd.DataFrame) -> pd.DataFrame:
     bins = [0, 6, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144, 156, 168, 180]
     df = df.copy()
     df["horizon_bin"] = pd.cut(df["horizon_hours"], bins=bins)
-    tabla = df.groupby(["indicador", "horizon_bin"], observed=True)["error_abs"].mean().reset_index()
+    tabla = df.groupby(["indicador", "horizon_bin"], observed=True)["error_abs"].agg(
+        MAE="mean", n="size"
+    ).reset_index()
     tabla["horizonte"] = tabla["horizon_bin"].apply(lambda iv: iv.right)
-    return tabla.rename(columns={"error_abs": "MAE"})
-
+    return tabla
 
 def _error_por_hora_long(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
@@ -151,8 +152,9 @@ def mostrar_tab_analisis_forecast(db_path: str = "forecast_tracker.db"):
     with col1:
         st.markdown("**Error medio según antelación de la previsión**")
         tabla_h = _error_por_horizonte_long(df)
+        print("TABLA HORIZONTE", tabla_h.head())
         fig_h = px.line(
-            tabla_h, x="horizonte", y="MAE", color="indicador", markers=True,
+            tabla_h, x="horizonte", y="MAE", color="indicador", markers=True, hover_data=["n"],
             labels={"horizonte": "Horas de antelación", "MAE": "Error absoluto medio"},
         )
         st.plotly_chart(fig_h, width='stretch')
@@ -181,7 +183,9 @@ def mostrar_tab_analisis_forecast(db_path: str = "forecast_tracker.db"):
 
     fig_serie = go.Figure()
     fig_serie.add_trace(go.Scatter(x=ultima["target_datetime"], y=ultima["valor_real"], name="Real", line=dict(width=2)))
-    fig_serie.add_trace(go.Scatter(x=ultima["target_datetime"], y=ultima["value"], name="Previsión (más reciente)", line=dict(width=1, dash="dot")))
+    fig_serie.add_trace(go.Scatter(x=ultima["target_datetime"], y=ultima["value"], 
+                                   name="Previsión (más reciente)", 
+                                   line=dict(width=2, dash="dash", color="#FFA15A")))
     fig_serie.update_layout(margin=dict(l=20, r=20, t=20, b=20), height=350)
     st.plotly_chart(fig_serie, width='stretch')
 
