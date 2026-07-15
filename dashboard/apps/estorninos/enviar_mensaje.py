@@ -146,13 +146,14 @@ def calcular_mensaje(destino = "Telegram") -> str:
     return mensaje
 
 # Calcular y enviar
-mensaje = calcular_mensaje(destino="Telegram")
-print(f"Se envia mensaje? {st.secrets.get('TG_active')}")
-print(f"Mensaje de hoy: {mensaje}")
+if __name__ == "__main__":
+    mensaje = calcular_mensaje(destino="Telegram")
+    print(f"Se envia mensaje? {st.secrets.get('TG_active')}")
+    print(f"Mensaje de hoy: {mensaje}")
 
-if st.secrets.get("TG_active"):
-    response, error = send_TG_message(mensaje)
-    if error:
-        print(f"Error al enviar mensaje a Telegram: {error}")
-    else:
-        print("Mensaje enviado a Telegram con éxito.")
+    if st.secrets.get("TG_active"):
+        response, error = send_TG_message(mensaje)
+        if error:
+            print(f"Error al enviar mensaje a Telegram: {error}")
+        else:
+            print("Mensaje enviado a Telegram con éxito.")
