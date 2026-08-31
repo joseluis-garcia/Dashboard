@@ -29,7 +29,6 @@ def get_aerotermia_data( conn: sqlite3.Connection) -> tuple[pd.DataFrame, str | 
     if error:
         st.error(f"Error al cargar datos históricos de aerotermia: {error}")
         return None, error
-    
     swibe['energy'] = swibe.apply( cleanSolar, axis = 1)
     swibe['energy'] = swibe["energy"] / 1000 # Convertir a kWh
     swibe = swibe[['energy']]
@@ -56,7 +55,7 @@ def get_aerotermia_data( conn: sqlite3.Connection) -> tuple[pd.DataFrame, str | 
     df_prices = prices[(prices.index >= dateMin) & (prices.index <= dateMax)]
 
     # Compute real cost
-    df_cost = df_prices.join(df_energy)
+    df_cost = df_prices.join(df_energy, how='inner')
     df_cost["cost"] = df_cost["price"] * df_cost["energy"]
 
     #Get weather data from METEO table

@@ -53,7 +53,7 @@ IND_EO = 541        # Previsión eólica - Previsión de la producción eólica 
 IND_FV = 542        # Solar fotovoltaica - Generación prevista Solar fotovoltaica
 IND_DEM = 603       # Previsión semanal - Previsión semanal de la demanda eléctrica peninsular
 # Historico
-IND_DEMANDA = 1293  # Demanda real - Demanada real
+IND_DEMANDA = 1293  # Demanda real - Demanda real
 IND_GEN_FV = 1295   # Solar fotovoltaica - Generación T.Real Solar fotovoltaica
 IND_GEN_TR = 1296   # Térmica renovable - Generación T.Real Térmica renovable
 IND_GEN_EO = 551    # Eólica - Generación T.Real eólica
@@ -387,7 +387,7 @@ def update_ESIOS_history(conn: Optional[sqlite3.Connection] = None) -> Tuple[
 def get_ESIOS_data_from_measurements(conn: sqlite3.Connection, rango: Optional[RangoFechas] = None) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """
     Carga datos historicos de ESIOS para entrenar modelos desde SQL.
-    Debe devolver columnas: ['datetime', 'Eólica', 'Solar fotovoltaica', 'Mercado SPOT', 'Demanda real']
+    Debe devolver columnas: ['datetime', 'Eólica', 'Solar fotovoltaica', 'Demanda real']
         
     Args:
         rango: Diccionario con 'start_date' y 'end_date'
@@ -395,14 +395,14 @@ def get_ESIOS_data_from_measurements(conn: sqlite3.Connection, rango: Optional[R
     Returns:
         Tupla (dataframe, error) donde:
          
-        - dataframe: Index(['datetime', 'Eólica', 'Solar fotovoltaica', 'Mercado SPOT', 'Demanda real']
+        - dataframe: Index(['datetime', 'Eólica', 'Solar fotovoltaica', 'Demanda real']
         - error: None si es exitoso, mensaje de error si falla
     """
     try:
         if rango is None:
-            query = 'select datetime, Eólica, "Solar Fotovoltaica", "Mercado SPOT", "Demanda real" from ESIOS_data order by datetime'
+            query = 'select datetime, Eólica, "Solar Fotovoltaica", "Demanda real" from ESIOS_data order by datetime'
         else:
-            query = f'select datetime, Eólica, "Solar Fotovoltaica", "Mercado SPOT", "Demanda real" from ESIOS_data where datetime >= {rango["start_date"]} and datetime <= {rango["end_date"]} order by datetime'
+            query = f'select datetime, Eólica, "Solar Fotovoltaica", "Demanda real" from ESIOS_data where datetime >= {rango["start_date"]} and datetime <= {rango["end_date"]} order by datetime'
 
         df, error = read_sql_ts(query, conn)
         if error:

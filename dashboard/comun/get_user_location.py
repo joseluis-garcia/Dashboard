@@ -32,6 +32,7 @@ def get_user_location() -> Tuple[Optional[float], Optional[float]]:
         ...     print(f"Ubicación: {lat}, {lon}")
     """
     # Intentar leer cookie existente
+    print(..., flush=True)
     cookie_value = streamlit_js_eval(
         js_expressions="document.cookie",
         key="read_cookie"
@@ -49,6 +50,7 @@ def get_user_location() -> Tuple[Optional[float], Optional[float]]:
             pass  # Si hay error, continuar con geolocalización
 
     # Solicitar geolocalización al usuario
+    print("Solicitando geolocalización al usuario...", flush=True)
     loc = streamlit_js_eval(
         js_expressions="""
         new Promise((resolve) => {
@@ -66,6 +68,7 @@ def get_user_location() -> Tuple[Optional[float], Optional[float]]:
         key="get_location"
     )
 
+    print("Ubicación obtenida:", loc, flush=True)
     if loc and loc != "error":
         try:
             lat, lon = map(float, loc.split(","))
@@ -87,10 +90,13 @@ def borrar_user_location() -> None:
         ...     borrar_user_location()
     """
     streamlit_js_eval(
-        js_expressions='document.cookie = "user_location=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"',
+        js_expressions='''
+        document.cookie = "user_location=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        window.location.reload();
+        ''',
         key="delete_cookie"
     )
-    st.rerun()
+    print("Borrando cookie user_location", flush=True)
 
 
 __all__ = ["get_user_location", "borrar_user_location"]

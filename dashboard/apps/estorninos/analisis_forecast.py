@@ -119,7 +119,6 @@ def _primera_vs_ultima(df: pd.DataFrame) -> pd.DataFrame:
 # --- Render principal, para llamar desde un st.tabs() -----------------------
 def mostrar_tab_analisis_forecast(db_path: str = "forecast_tracker.db"):
 
-    print(f"Mostrando análisis de calidad para {db_path}")
     st.subheader("📈 Calidad de las previsiones ESIOS")
 
     try:
@@ -152,7 +151,6 @@ def mostrar_tab_analisis_forecast(db_path: str = "forecast_tracker.db"):
     with col1:
         st.markdown("**Error medio según antelación de la previsión**")
         tabla_h = _error_por_horizonte_long(df)
-        print("TABLA HORIZONTE", tabla_h.head())
         fig_h = px.line(
             tabla_h, x="horizonte", y="MAE", color="indicador", markers=True, hover_data=["n"],
             labels={"horizonte": "Horas de antelación", "MAE": "Error absoluto medio"},

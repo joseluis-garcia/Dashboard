@@ -36,7 +36,6 @@ def load_historico_temperaturas(_conn: sqlite3.Connection) -> Tuple[Optional[pd.
     df_temp["date"] = df_temp.index.date
     df_temp["hour"] = df_temp.index.hour
     df_temp = df_temp.drop_duplicates(subset=["date", "hour"], keep="last")
-    print(f"Temperaturas históricas cargadas desde: {df_temp.index[0]} hasta {df_temp.index[-1]}, {len(df_temp)} registros")
 
     # Prepara datos temperatura para heatmap
     temp_matrix = df_temp.pivot(
@@ -74,8 +73,9 @@ def add_estaciones(fig, fechas):
             )
 
 def add_efemerides(fig, fechas):
+
     # Datos de salida y puesta del sol para superponer en el heatmap
-    df_sun = getSunDataRange(TCB.PUERTA_SOL,date(2024, 1, 1), date(2025, 12, 31), 15, tz_local="UTC")
+    df_sun = getSunDataRange(TCB.PUERTA_SOL,fechas[0], fechas[-1], 15, tz_local="UTC")
 
     # PUNTOS DE SALIDA DEL SOL
     fig.add_trace(go.Scatter(

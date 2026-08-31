@@ -196,8 +196,9 @@ with tab_algoritmo:
                     st.error("Contraseña incorrecta")
 
 with tab_precios:
-    st.subheader("Mapa de precios spot histórico")
+
     fig_precios, ticks_mes, error = load_historico_precios_spot(conn, True, True)
+    st.subheader(f"Mapa de precios spot histórico desde {ticks_mes[0].date()} hasta {ticks_mes[-1].date()}")
     if error:
         st.error(f"Error al cargar datos históricos de precios spot: {error}")
     else:
@@ -233,61 +234,7 @@ with tab_stress:
     st.write("El stress térmico mensual se calcula sumando el stress térmico de cada hora del mes. Se representa en un mapa de calor y en un gráfico de líneas para ver la evolución a lo largo del año.")
     st.plotly_chart(fig_stress_mensual, width='stretch', key="stress_mensual")
     st.plotly_chart(fig_stress_mensual_lineas, width='stretch', key="stress_mensual_lineas")
-# with tab_summary:
-#     # Crear subplots con eje Y compartido
-#     fig_comb = make_subplots(
-#         rows=1, 
-#         cols=3,
-#         column_widths=[0.45, 0.1, 0.45],  # ejeY ocupa poco
-#         shared_yaxes=True,
-#         horizontal_spacing=0.05
-#     )
 
-# #     # Convertir px.imshow() a traces limpios
-# #     trace1 = px_to_trace(fig_precios, colorbar_side="left", colorscale="Turbo")
-# #     trace2 = px_to_trace(fig_temperaturas, colorbar_side="right", colorscale="RdBu_r")
-
-#     fig_precios.data[0].colorbar.update(x=0.15,y=0.53,xref="container")
-#     fig_temperaturas.data[0].colorbar.update(x=1.1,y=0.53,xref="container")
-#     # Añadir al subplot
-#     fig_comb.add_trace(fig_precios.data[0], row=1, col=1)
-#     fig_comb.add_trace(fig_temperaturas.data[0], row=1, col=3)
-
-# # --- Eje Y central (solo etiquetas) ---
-#     fig_comb.add_trace(
-#         go.Scatter(
-#             x=[0]*len(ticks_mes),
-#             y=ticks_mes,
-#             text=[d.strftime("%Y-%m") for d in ticks_mes],
-#             mode="text",
-#             showlegend=False
-#         ),
-#         row=1,
-#         col=2
-#     )
-
-    # # Hacer que el eje Y exista
-    # fig_comb.update_yaxes(visible=True, showticklabels=False, row=1, col=2)
-
-    # # Ocultar los ejes del subplot central
-    # fig_comb.update_xaxes(visible=False, row=1, col=2)
-    # fig_comb.update_yaxes(visible=False, row=1, col=2)
-
-    # # Ocultar eje Y del segundo heatmap
-    # fig_comb.update_yaxes(showticklabels=False, row=1, col=1)
-    # fig_comb.update_yaxes(showticklabels=False, row=1, col=3)
-
-    # # Ajustar layout
-    # fig_comb.update_layout(
-    #     height=900,
-    #     margin=dict(l=30, r=30, t=40, b=40)
-    # )
-
-    # # Mostrar en Streamlit
-    # st.subheader("Mapa de temperaturas y precios históricos")
-    # st.plotly_chart(fig_comb, width='stretch', key="resumen")
-
-#
 with tab_calidad:
     st.subheader("Calidad de las previsiones")
     st.caption("Análisis de la calidad de las previsiones ESIOS")

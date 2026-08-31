@@ -23,7 +23,7 @@ def load_historico_precios_spot(_conn: sqlite3.Connection, estaciones=True, efem
         error: None si es exitoso, mensaje de error si falla
     """
 
-    df_spot, error = read_sql_ts('select datetime, "Mercado SPOT" as price from ESIOS_data', _conn)
+    df_spot, error = read_sql_ts('select datetime, "Mercado SPOT" as price from ESIOS_prices', _conn)
     if error: 
         return None, None, f"Error al cargar datos históricos de precios spot: {error}"
     
@@ -103,7 +103,8 @@ def load_historico_precios_spot(_conn: sqlite3.Connection, estaciones=True, efem
     
     if (efemerides):
     # Datos de salida y puesta del sol para superponer en el heatmap
-        df_sun = getSunDataRange(TCB.PUERTA_SOL,date(2022, 1, 1), date(2026, 3, 31), 15)
+        df_sun = getSunDataRange(TCB.PUERTA_SOL,fechas[0], fechas[-1], 15, tz_local="UTC")
+
 
     # PUNTOS DE SALIDA DEL SOL
         fig_precios.add_trace(go.Scatter(
