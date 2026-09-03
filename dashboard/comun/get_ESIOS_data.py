@@ -6,7 +6,9 @@ Proporciona funciones
 - fetch_multiple_indicators: Obtiene multiples indicators de forma asincrona
 - get_ESIOS_energy_forecast: Previsiones de energía eólica, solar fotovoltaica y demanda
 - get_ESIOS_energy_history: Datos historicos de energía de multiples fuente no CO2
+- get_ESIOS_prices_history: Datos historicos de precios Mercado SPOT
 - get_ESIOS_spot: Precio del mercado spot diario
+- get_ESIOS_data_from_measurements: Carga datos historicos de ESIOS para entrenar modelos desde SQL
 - update_ESIOS_history: Actualiza la tabla ESIOS_data con los datos historicos de energía y precio spot desde la última fecha registrada hasta la fecha actual
 """
 import sqlite3
@@ -387,7 +389,7 @@ def update_ESIOS_history(conn: Optional[sqlite3.Connection] = None) -> Tuple[
 def get_ESIOS_data_from_measurements(conn: sqlite3.Connection, rango: Optional[RangoFechas] = None) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """
     Carga datos historicos de ESIOS para entrenar modelos desde SQL.
-    Debe devolver columnas: ['datetime', 'Eólica', 'Solar fotovoltaica', 'Demanda real']
+    Debe devolver columnas: ['datetime', 'Eólica', 'Solar fotovoltaica', 'Demanda real', 'Mercado SPOT']
         
     Args:
         rango: Diccionario con 'start_date' y 'end_date'
@@ -395,14 +397,14 @@ def get_ESIOS_data_from_measurements(conn: sqlite3.Connection, rango: Optional[R
     Returns:
         Tupla (dataframe, error) donde:
          
-        - dataframe: Index(['datetime', 'Eólica', 'Solar fotovoltaica', 'Demanda real']
+        - dataframe: Index(['datetime', 'Eólica', 'Solar fotovoltaica', 'Demanda real', 'Mercado SPOT'])
         - error: None si es exitoso, mensaje de error si falla
     """
     try:
         if rango is None:
-            query = 'select datetime, Eólica, "Solar Fotovoltaica", "Demanda real" from ESIOS_data order by datetime'
+            query = 'select d.datetime, d.Eólica, d."Solar Fotovoltaica", d."Demanda real", p."Mercado SPOT" from ESIOS_data as d left join ESIOS_prices as p on d.datetime = p.datetime order by d.datetime'
         else:
-            query = f'select datetime, Eólica, "Solar Fotovoltaica", "Demanda real" from ESIOS_data where datetime >= {rango["start_date"]} and datetime <= {rango["end_date"]} order by datetime'
+            query = f'select d.datetime, d.Eólica, d."Solar Fotovoltaica", d."Demanda real", p."Mercado SPOT" from ESIOS_data as d left join ESIOS_prices as p on d.datetime = p.datetime where d.datetime >= {rango["start_date"]} and d.datetime <= {rango["end_date"]} order by d.datetime'
 
         df, error = read_sql_ts(query, conn)
         if error:
