@@ -94,11 +94,13 @@ st.markdown("""
 st.set_page_config(layout="wide")
 st.title("Visualización de variables ESIOS")
 
-tab_curvas, tab_agenda, tab_agenda_ponderada, tab_algoritmo, tab_precios, tab_temperaturas, tab_stress, tab_calidad = st.tabs(["Curvas", "Agenda", "Agenda Ponderada", "Algoritmo", "Precios", "Temperaturas","Stress térmico", "Calidad"])
+# tab_curvas, tab_agenda, tab_agenda_ponderada, tab_algoritmo, tab_precios, tab_temperaturas, tab_stress, tab_calidad = st.tabs(["Curvas", "Agenda", "Agenda Ponderada", "Algoritmo", "Precios", "Temperaturas","Stress térmico", "Calidad"])
+tab_curvas, tab_agenda_ponderada, tab_algoritmo, tab_precios, tab_temperaturas, tab_stress, tab_calidad = st.tabs(["Curvas", "Agenda Ponderada", "Algoritmo", "Precios", "Temperaturas","Stress térmico", "Calidad"])
 
 with tab_curvas:
-    st.info(f"Rango de fechas: {rango['start_date']} → {rango['end_date']}")
+    #st.info(f"Rango de fechas: {rango['start_date']} → {rango['end_date']}")
     st.subheader("Predicción Energia")
+
     df_energia, error = get_ESIOS_energy_forecast(rango)
     if error:
         st.error(f"Error al obtener datos de energía: {error}")
@@ -110,7 +112,13 @@ with tab_curvas:
 # Prepara gráfico de precios
 # =========================
     st.subheader("Predicción Precios")
-    show_mensaje()  
+    #show_mensaje()
+    with st.expander("ℹ️ Ver nota"):
+        st.write("""
+        Los precios estimados en este gráfico se han calculado asumiendo correlación entre el precio final de la energía en el mercado spot diario y el porcentaje de energía eólica + fotovoltaica versus la demanda total.\n
+        Se utiliza un modelo Random Forest, alimentado con datos históricos desde el 1 de enero de 2022, para predecir valores futuros según las predicciones de producción y demanda de ESIOS (indicadores 541, 542 y 603) para los próximos 10 dias.\n
+        Solo es válida la forma de la curva y sirve para detectar puntos de precios muy altos o bajos.
+        """) 
 
     fig_forecast, error = grafico_prices_forecast(conn, rango, method='rf')
     if error:
@@ -119,33 +127,42 @@ with tab_curvas:
         st.plotly_chart(fig_forecast, width='stretch', config={"renderer": "svg"})
 # 
 
-with tab_agenda:
-    st.subheader("Agenda")
-    st.info(f"Estamos en {dc.get_estacion(today)}")
-    col1, col2, col3 = st.columns([3, 3, 3])   # proporciones
-    with col1:
-        st.markdown(
-            "<div style='padding-top: 32px;'>Selecciona criterio para colorear la agenda:</div>",
-            unsafe_allow_html=True
-        )
-    with col2:
-        opcion = st.selectbox(" Prueba ", ["Renovable versus Demanda", "Precio Estimado"])
-    with col3:
-        st.empty()
+# with tab_agenda:
+#     st.subheader("Agenda")
+#     st.info(f"Estamos en {dc.get_estacion(today)}")
+#     col1, col2, col3 = st.columns([3, 3, 3])   # proporciones
+#     with col1:
+#         st.markdown(
+#             "<div style='padding-top: 32px;'>Selecciona criterio para colorear la agenda:</div>",
+#             unsafe_allow_html=True
+#         )
+#     with col2:
+#         opcion = st.selectbox(" Prueba ", ["Renovable versus Demanda", "Precio Estimado"])
+#     with col3:
+#         st.empty()
 
-    fig_agenda, error = mostrar_agenda(conn, opcion)
-    if error:
-        st.error(error)
-    else:
-        st.plotly_chart(fig_agenda, width='stretch', key="agenda")
+#     fig_agenda, error = mostrar_agenda(conn, opcion)
+#     if error:
+#         st.error(error)
+#     else:
+#         st.plotly_chart(fig_agenda, width='stretch', key="agenda")
 
 with tab_agenda_ponderada:
     opcion = st.radio("Criterio", ["Precio Estimado", "Renovable", "Combinado"])
     peso_eco = 0.5
+    umbral = None
+
+    if opcion == "Precio Estimado":
+        umbral = st.number_input(
+            "Umbral de desplazamiento (€/MWh)",
+            min_value=0.0, value=20.0, step=5.0,
+            help="Muestra ↑/↓ si la hora anterior/siguiente es más barata en más de este valor.",
+        )
+
     if opcion == "Combinado":
         peso_eco = st.slider("Ahorro ⟷ Ecología", 0.0, 1.0, 0.5, step=0.05)
 
-    fig, error = agenda_ponderada(conn, opcion, peso_eco=peso_eco)
+    fig, error = agenda_ponderada(conn, opcion, peso_eco=peso_eco, umbral_desplazamiento=umbral)
     if error:
         st.error(f"Error al cargar datos históricos de precios spot: {error}")
     else:

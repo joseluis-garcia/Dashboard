@@ -38,13 +38,48 @@ def _periodo_2_0TD(hour: int, dia_valle_completo: bool) -> str:
 
 _PERIODO_LABEL = {"P": "Punta", "L": "Llano", "V": "Valle"}
 
+# Símbolos de desplazamiento (eje Y invertido: 00h arriba).
+# Cambia aquí el símbolo si quieres probar otro: "⏫"/"⏬", "🔼"/"🔽", "▲"/"▼"...
+_FLECHA_ATRAS = "⬆️"      # desplazar a la hora anterior
+_FLECHA_ADELANTE = "⬇️"   # desplazar a la hora siguiente
 
-def agenda_ponderada(conn, opcion, peso_eco=0.5):
+
+def _flecha_desplazamiento(precios, dt, umbral):
+    """
+    Compara el precio de `dt` con el de la hora anterior y la siguiente.
+    Devuelve (ahorro, flecha, delta_horas) si alguna vecina es más barata
+    en más de `umbral`; si ambas lo son, elige la de mayor ahorro.
+    Devuelve None si no hay desplazamiento que compense.
+
+    Eje Y invertido (00h arriba): _FLECHA_ADELANTE (⬇️) = desplazar a la hora
+    siguiente, _FLECHA_ATRAS (⬆️) = desplazar a la hora anterior.
+    """
+
+    actual = precios.get(dt)
+    if actual is None or pd.isna(actual):
+        return None
+
+    candidatos = []
+    for delta, flecha in ((-1, _FLECHA_ATRAS), (1, _FLECHA_ADELANTE)):
+        vecino = precios.get(dt + pd.Timedelta(hours=delta))
+        if vecino is None or pd.isna(vecino):
+            continue  # borde de la ventana: no hay dato
+        ahorro = actual - vecino
+        if ahorro > umbral:
+            candidatos.append((ahorro, flecha, delta))
+    return max(candidatos) if candidatos else None
+
+
+def agenda_ponderada(conn, opcion, peso_eco=0.5, umbral_desplazamiento=None):
     """
     conn: Conexión a la base de datos para obtener los datos de precios y renovables
     opcion: 'Precio Estimado' | 'Renovable' | 'Combinado'
     peso_eco: 0.0 (100% económico) .. 1.0 (100% ecológico), solo se usa
               cuando opcion == 'Combinado'. Viene del slider en la app.
+    umbral_desplazamiento: diferencia mínima de precio (mismas unidades que
+              precio_estimado) entre horas consecutivas para mostrar la flecha
+              de desplazamiento. Solo aplica con opcion == 'Precio Estimado'.
+              None o <= 0 desactiva la función.
     """
 
     # --- Construir ventana de 7 días desde HOY (no semana natural) -----
@@ -71,6 +106,15 @@ def agenda_ponderada(conn, opcion, peso_eco=0.5):
     df_final["norm_p"] = df_final["precio_estimado"].rank(pct=True)
     df_final["norm_r"] = df_final["Renovable_pct"].rank(pct=True)
 
+    # --- Serie de precios para las flechas de desplazamiento -------------
+    precios = df_final["precio_estimado"]
+    precios = precios[~precios.index.duplicated()]  # por si hay hora repetida en cambio de hora
+    usar_flechas = (
+        opcion == "Precio Estimado"
+        and umbral_desplazamiento is not None
+        and umbral_desplazamiento > 0
+    )
+
     def condicion(dt, opcion):
         precio = df_final.loc[dt, "precio_estimado"]
         renovable = df_final.loc[dt, "Renovable_pct"]
@@ -80,9 +124,21 @@ def agenda_ponderada(conn, opcion, peso_eco=0.5):
         precio_bad = norm_p          # 0 bueno .. 1 malo
         renov_bad = 1 - norm_r       # 0 bueno .. 1 malo
 
+        flecha = ""
+        info_desplaz = ""
+
         if opcion == "Precio Estimado":
             badness = precio_bad
             label = f"{precio:.1f} €/MW"
+            if usar_flechas:
+                res = _flecha_desplazamiento(precios, dt, umbral_desplazamiento)
+                if res:
+                    ahorro, flecha_sym, delta = res
+                    flecha = flecha_sym + " "
+                    sentido = "adelante" if delta > 0 else "atrás"
+                    info_desplaz = (
+                        f"<br>Desplazar 1h {sentido}: ahorras {ahorro:.2f} €/MWh"
+                    )
         elif opcion == "Renovable":
             badness = renov_bad
             label = f"{renovable:.1f}%"
@@ -108,8 +164,9 @@ def agenda_ponderada(conn, opcion, peso_eco=0.5):
             f"Renovable/demanda: {renovable:.1f}% (percentil {norm_r:.2f})<br>"
             f"Periodo 2.0TD: {_PERIODO_LABEL[periodo]}<br>"
             f"Índice combinado: {badness:.2f}"
+            f"{info_desplaz}"
         )
-        return badness, marca + label, tooltip, periodo
+        return badness, marca + flecha + label, tooltip, periodo
 
     # --- Agregado diario para el panel superior -------------------------
     daily = df_final.groupby(df_final.index.date).sum()

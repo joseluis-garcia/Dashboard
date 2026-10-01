@@ -75,6 +75,10 @@ if lat is None or lon is None:
     #si no hay geolocalizacion usamos la Puerta del Sol de Madrid 
     with colA: lat = st.number_input("Latitud", value=TCB.PUERTA_SOL["lat"]) 
     with colB: lon = st.number_input("Longitud", value=TCB.PUERTA_SOL["lon"])
+
+# Con el problema de Mozila para detectar la localizacion del usuario la fijo en las coordenadas de la casa de TCB para que el forecast meteo y PVGIS funcione correctamente
+lat = TCB.CASA["lat"]
+lon = TCB.CASA["lon"]
 # ---------------------------------------------------------
 # Mostrar la localización lat, lon y ofrecer opción de borrar cookie
 #- ---------------------------------------------------------

@@ -153,7 +153,7 @@ def grafico_ESIOS_energy(df_energia: pd.DataFrame) -> go.Figure:
     )
 
     fig.update_layout(
-        title="Previsión de energía eólica, solar y demanda",
+        title="Previsión de energía eólica + solar versus demanda",
         xaxis_title="Fecha",
         yaxis_title="MW",
         legend=dict(
