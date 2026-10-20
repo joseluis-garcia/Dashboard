@@ -155,7 +155,7 @@ with tab_agenda_ponderada:
     if opcion == "Precio Estimado":
         umbral = st.number_input(
             "Umbral de desplazamiento (€/MWh)",
-            min_value=0.0, value=20.0, step=5.0,
+            min_value=0.0, value=50.0, step=5.0,
             help="Muestra ↑/↓ si la hora anterior/siguiente es más barata en más de este valor.",
         )
 

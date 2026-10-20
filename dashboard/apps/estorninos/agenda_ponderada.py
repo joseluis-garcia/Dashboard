@@ -176,11 +176,59 @@ def agenda_ponderada(conn, opcion, peso_eco=0.5, umbral_desplazamiento=None):
     z, text, custom = [], [], []
     periodos_por_dia = []  # para las líneas de tarifa
 
+    # for h in hours:
+    #     row_z, row_t, row_tt, row_p = [], [], [], []
+    #     for d in days:
+    #         dt = pd.Timestamp(d).replace(hour=h).tz_localize("Europe/Madrid")
+    #         badness, label, tooltip, periodo = condicion(dt, opcion)
+    #         row_z.append(badness)
+    #         row_t.append(label)
+    #         row_tt.append(tooltip)
+    #         row_p.append(periodo)
+    #     z.append(row_z); text.append(row_t); custom.append(row_tt)
+    #     periodos_por_dia.append(row_p)
+
+    #
+    # cambio para evitar fallo de los dias con cambio hora invierno - verano
+    #
+    def _localizar_hora(d, h, tz="Europe/Madrid"):
+        """Timestamps tz-aware para la hora local h del día d.
+        Normal: 1 elemento. Repetida (octubre): 2 [CEST, CET]. Inexistente (marzo): []."""
+        naive = pd.Timestamp(d).replace(hour=h)
+        primera = naive.tz_localize(tz, ambiguous=True, nonexistent="NaT")
+        if pd.isna(primera):          # hora inexistente (marzo)
+            return []
+        segunda = naive.tz_localize(tz, ambiguous=False, nonexistent="NaT")
+        if primera == segunda:        # hora normal: ambas dan el mismo instante
+            return [primera]
+        return [primera, segunda]     # hora repetida (octubre): +02:00 y +01:00
+    
     for h in hours:
         row_z, row_t, row_tt, row_p = [], [], [], []
         for d in days:
-            dt = pd.Timestamp(d).replace(hour=h).tz_localize("Europe/Madrid")
-            badness, label, tooltip, periodo = condicion(dt, opcion)
+            dts = _localizar_hora(d, h)
+
+            if not dts:  # hora inexistente (cambio a horario de verano)
+                row_z.append(None)
+                row_t.append("")
+                row_tt.append("Hora inexistente por el cambio de hora")
+                row_p.append(None)
+                continue
+
+            res = [condicion(dt, opcion) for dt in dts]
+
+            if len(res) == 1:
+                badness, label, tooltip, periodo = res[0]
+            else:  # hora repetida (cambio a horario de invierno)
+                badness = sum(r[0] for r in res) / len(res)
+                label = "🔁 " + res[0][1]
+                tooltip = (
+                    "<b>Hora repetida por el cambio de hora</b><br>"
+                    f"<b>1ª (+02:00)</b><br>{res[0][2]}<br>"
+                    f"<b>2ª (+01:00)</b><br>{res[1][2]}"
+                )
+                periodo = res[0][3]
+
             row_z.append(badness)
             row_t.append(label)
             row_tt.append(tooltip)
