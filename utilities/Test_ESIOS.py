@@ -1,29 +1,37 @@
 import requests
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pytz
 import pandas as pd
 
 API_TOKEN = "d24bdfb17a69ea6568815918ee3309c3233ab055fe96340da8cd78e71ee9170e"
-indicator_id = 603  # Precio medio diario en España
+indicator_id = 542  # Precio medio diario en España
 url = f"https://api.esios.ree.es/indicators/{indicator_id}"  # indicador
 
-tz = pytz.timezone("Europe/Madrid")
-today = tz.localize(datetime.now().replace(minute=0, second=0, microsecond=0))
-start_date = today + timedelta(days=-1)
-end_date = today + timedelta(days=1)
+# tz = pytz.timezone("Europe/Madrid")
+# today = tz.localize(datetime.now().replace(minute=0, second=0, microsecond=0))
+# start_date = today + timedelta(days=-1)
+# end_date = today + timedelta(days=10)
 
+# rango = {
+#     'start_date': start_date.strftime('%Y-%m-%dT%H:%M:%S'),
+#     'end_date': end_date.strftime('%Y-%m-%dT%H:%M:%S')
+# }
+
+tz = timezone(timedelta(hours=1))  # Hora de Madrid (UTC+1)
+today = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+start_date = today - timedelta(days=30) # Mañana a las 00:00
+end_date = start_date + timedelta(days=10) - timedelta(seconds=1)
 rango = {
     'start_date': start_date.strftime('%Y-%m-%dT%H:%M:%S'),
     'end_date': end_date.strftime('%Y-%m-%dT%H:%M:%S')
 }
 
-rango = {
-            'start_date': "2026-05-01T23:00:00Z",
-            'end_date': "2026-05-03T22:59:59Z"
-}
 
-
+# rango = {
+#             'start_date': "2026-05-01T23:00:00Z",
+#             'end_date': "2026-05-03T22:59:59Z"
+# }
 
 headers = {
     "x-api-key": f"{API_TOKEN}",
@@ -62,6 +70,7 @@ print(f"  geo_agg  : {ind.get('geo_agg')}")
 print(f"  step_type: {ind.get('step_type')}") 
 
 df = pd.DataFrame(data)
+print("TEST ESIOS 0", df)
 if indicator_id == 600:
         df = df[df['geo_name'] == 'España']
 print("TEST ESIOS 1", df)

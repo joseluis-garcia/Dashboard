@@ -84,7 +84,7 @@ def clean_dataset(df):
     df = df[df["Mercado SPOT"] < df["Mercado SPOT"].quantile(0.95)]
     return df
 
-@st.cache_data
+# @st.cache_data
 def get_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas, method: str) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """
     Calcula precios estimados a partir de energía renovable y demanda.
@@ -131,6 +131,7 @@ def get_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas, method
     print("Debe reentrenar:", debe_reentrenar)
     if debe_reentrenar:
         df, error = get_ESIOS_data_from_measurements(_conn, None) # Solo para cargar datos y entrenar el modelo, no se usa directamente en el forecast
+        print("REENTRENAR con", df.head(5))
         if error:
             return None, error
         
@@ -146,6 +147,7 @@ def get_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas, method
             model, metrics = train_model_lr(df)
             print(metrics)
 
+        print("Volcando modelo en disco...", modelo_path)
         joblib.dump({"method": method, "model": model, "metrics": metrics}, modelo_path)
     else:
         model = pre_model
@@ -162,6 +164,8 @@ def get_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas, method
     
     # Combinar energía y spot
     df_final = df_energy.join(df_spot, how="outer")
+
+    print("get_prices_forecast df_final", df_final.head(5))
     # Calcular % de EO + FV sobre la demanda total para la regresion lineal
     df_final["Renovable_pct"] = df_final["Renovable"] / (df_final["Previsión semanal"] + 1e-8)  # Evitar división por cero
     df_final = df_final.rename(columns={"Previsión semanal": "Demanda real", "Previsión eólica": "Eólica"})

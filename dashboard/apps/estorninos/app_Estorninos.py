@@ -3,6 +3,7 @@ import sys
 from datetime import date, datetime, timedelta
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
 from zoneinfo import ZoneInfo
 from dashboard.comun.mensaje import send_TG_message
 from dashboard.comun import date_conditions as dc
@@ -33,7 +34,7 @@ today = datetime.now(tz).replace(minute=0, second=0, microsecond=0)
 start_date = today + timedelta(days=-5)
 end_date = today + timedelta(days=10)
 # Para probar fechas fijas
-# start_date = tz.localize( datetime(2026, 1, 1).replace(minute=0, second=0, microsecond=0))
+# start_date = tz.localize( datetime(2026, 1, 1).replace(minute=0, second=0, microsecond=0))if grafico is not None:
 # end_date = tz.localize( datetime(2026, 1, 8).replace(minute=0, second=0, microsecond=0))
 rango = {
     "start_date": start_date,
@@ -179,8 +180,11 @@ with tab_algoritmo:
     st.subheader("Algoritmo")
     st.write("En esta página se desarrollará la lógica para el envio de mensajes a los estorninos a mediante el canal de Telegram al que te puedes suscribir siguiendo este enlace https://t.me/+qsGht4W8dZ4yMjU8")
     st.write("A modo de prueba, si estas autorizado, el texto que escribas en este área se enviará a todos los que se hubieran suscrito al canal <Estorninos de Som> en Telegram")
-    texto = calcular_mensaje(destino="Streamlit")
-    comentario = st.text_area("Mensaje de hoy", value=texto, height=600)
+    texto, grafico = calcular_mensaje(destino="Streamlit")
+    comentario = st.text_area("Mensaje de hoy", value=texto, height=300)
+    if grafico is not None:
+        grafico.seek(0)
+        st.image(grafico, use_container_width=True)
 
     # --- Botón de envio protegido por password ---
     if st.button("Enviar"):

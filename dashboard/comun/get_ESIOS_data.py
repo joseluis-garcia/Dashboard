@@ -131,6 +131,11 @@ def get_indicator(indicator_id: int, date_range: RangoFechas, time_trunc: str = 
 
     df = pd.DataFrame(data)
 
+    print(f"Datos obtenidos para indicador {indicator_id} ({variable}): {len(df)} registros")
+    if (len(df) == 0):
+        mensaje = f"No se encontraron datos para el indicador {indicator_id} ({variable}) en el rango de fechas especificado."
+        return None, mensaje  # Devuelve un DataFrame vacío si no hay datos
+    
     # Usamos datetime_utc como columna de tiempo para evitar problemas de horas repetidas en cambio de hora y convertimos en indice
     df["datetime"] = pd.to_datetime(df["datetime_utc"], utc=True)    
     df = df.set_index("datetime").sort_index()
@@ -319,9 +324,9 @@ def get_ESIOS_spot(rango: RangoFechas) -> Tuple[Optional[pd.DataFrame], Optional
             'start_date': start_date.strftime('%Y-%m-%dT%H:%M:%S'),
             'end_date': end_date.strftime('%Y-%m-%dT%H:%M:%S')
         }
-
-    # print("RANGO:",rango)
+   
     spot, error = get_indicator(IND_SPOT, rango, 'h')
+    print("SPOT:", spot)
     if error:
         return None, error
 
@@ -402,7 +407,9 @@ def get_ESIOS_data_from_measurements(conn: sqlite3.Connection, rango: Optional[R
     """
     try:
         if rango is None:
-            query = 'select d.datetime, d.Eólica, d."Solar Fotovoltaica", d."Demanda real", p."Mercado SPOT" from ESIOS_data as d left join ESIOS_prices as p on d.datetime = p.datetime order by d.datetime'
+            # query = 'select d.datetime, d.Eólica, d."Solar Fotovoltaica", d."Demanda real", p."Mercado SPOT" from ESIOS_data as d left join ESIOS_prices as p on d.datetime = p.datetime order by d.datetime'
+            query = 'select d.datetime, d.Eólica, d."Solar Fotovoltaica", d."Demanda real", p."Mercado SPOT" from ESIOS_data as d left join ESIOS_prices as p on d.datetime = p.datetime where d.datetime <= "2023-01-01" or d.datetime >= "2026-01-01" order by d.datetime'
+            print("QUERY desde get_ESIOS_data_from_measurements", query)
         else:
             query = f'select d.datetime, d.Eólica, d."Solar Fotovoltaica", d."Demanda real", p."Mercado SPOT" from ESIOS_data as d left join ESIOS_prices as p on d.datetime = p.datetime where d.datetime >= {rango["start_date"]} and d.datetime <= {rango["end_date"]} order by d.datetime'
 

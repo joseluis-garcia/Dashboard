@@ -202,11 +202,52 @@ def send_TG_message( texto: str):
     else:
         return None, "El envío de mensajes a Telegram no está activo. Activa 'TG_active' en secrets para habilitarlo."
 
+import io
+import requests
+
+def send_TG_photo(foto: io.BytesIO, texto: str):
+    if not st.secrets.get("TG_active"):
+        return None, "El envío de mensajes a Telegram no está activo. Activa 'TG_active' en secrets para habilitarlo."
+
+    TG_token = st.secrets.get("TG_token")
+    TG_chat_id_canal = st.secrets.get("TG_chat_id_canal")
+    TG_url = f"https://api.telegram.org/bot{TG_token}/sendPhoto"
+
+    # Telegram limita el caption a 1024 caracteres
+    # Si se supera, se envía la foto sola y el texto como mensaje aparte
+    if len(texto) > 1024:
+        response, error = _post_photo(TG_url, TG_chat_id_canal, foto, caption=None)
+        if error:
+            return None, error
+        return send_TG_message(texto)
+
+    return _post_photo(TG_url, TG_chat_id_canal, foto, caption=texto)
+
+
+def _post_photo(url, chat_id, foto, caption=None):
+    data = {"chat_id": chat_id}
+    if caption:
+        data["caption"] = caption
+        data["parse_mode"] = "MarkdownV2"
+    try:
+        foto.seek(0)
+        r = requests.post(
+            url,
+            data=data,
+            files={"photo": ("precios.png", foto, "image/png")},
+            timeout=30,
+        )
+        r.raise_for_status()
+        return r.json(), None
+    except Exception as e:
+        return None, str(e)
+    
 __all__ = [
     "render_df_proportional",
     "show_mensaje",
     "mostrar_alerta",
     "mostrar_recomendacion",
     "formatear_precio",
-    "send_TG_message"
+    "send_TG_message",
+    "send_TG_photo"
 ]

@@ -15,7 +15,9 @@ def safe_request(
     params: Optional[dict] = None,
     headers: Optional[dict] = None,
     timeout: int = 30,
-    json_data: Optional[dict] = None
+    json_data: Optional[dict] = None,
+    data: Optional[dict] = None,      # NUEVO: form data
+    files: Optional[dict] = None      # NUEVO: archivos multipart
 ) -> Tuple[Optional[requests.Response], Optional[str]]:
     """
     Realiza un request seguro con manejo de errores.
@@ -27,7 +29,8 @@ def safe_request(
         headers: Headers HTTP
         timeout: Timeout en segundos
         json_data: Datos JSON para enviar (para POST, PUT, etc.)
-        
+        data: Datos de formulario para enviar (para POST, PUT, etc.)
+        files: Archivos para enviar (para POST, PUT, etc.)
     Returns:
         Tupla (response, error) donde:
         - response: objeto Response si exitoso, None si hay error
@@ -54,7 +57,9 @@ def safe_request(
                 params=params,
                 headers=headers,
                 timeout=timeout,
-                json=json_data
+                json=json_data,
+                data=data,
+                files=files,
             )
         else:
             response = requests.request(
@@ -63,14 +68,16 @@ def safe_request(
                 params=params,
                 headers=headers,
                 timeout=timeout,
-                json=json_data
+                json=json_data,
+                data=data,
+                files=files,
             )
         
         response.raise_for_status()
         return response, None
 
     except requests.exceptions.HTTPError as e:
-        return None, f"Error HTTP {e.response.status_code}: {e.response.reason}"
+        return None, f"Error HTTP {e.response.status_code}: {e.response.reason} - {e.response.text}"
 
     except requests.exceptions.ConnectionError:
         return None, "Error de conexión: no se pudo conectar al servidor"

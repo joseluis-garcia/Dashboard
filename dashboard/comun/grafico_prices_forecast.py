@@ -18,7 +18,7 @@ from dashboard.comun import date_conditions as dc
 from dashboard.comun.get_Som_data import get_Som_prices_from_measurements
 from dashboard.comun.get_prices_forecast import get_prices_forecast
 
-@st.cache_data
+# @st.cache_data
 def grafico_prices_forecast(_conn: sqlite3.Connection, rango: dc.RangoFechas, method: str = "lr") -> Tuple[Optional[go.Figure], Optional[str]]:
     """
     Crea gráfico interactivo de precios estimados vs spot.
