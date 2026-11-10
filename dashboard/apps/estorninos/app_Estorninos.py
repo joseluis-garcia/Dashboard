@@ -181,9 +181,8 @@ with tab_algoritmo:
     st.write("En esta página se desarrollará la lógica para el envio de mensajes a los estorninos a mediante el canal de Telegram al que te puedes suscribir siguiendo este enlace https://t.me/+qsGht4W8dZ4yMjU8")
     st.write("A modo de prueba, si estas autorizado, el texto que escribas en este área se enviará a todos los que se hubieran suscrito al canal <Estorninos de Som> en Telegram")
     texto, grafico = calcular_mensaje(destino="Streamlit")
-    comentario = st.text_area("Mensaje de hoy", value=texto, height=300)
+    comentario = st.text_area("Mensaje", value=texto, height=300)
     if grafico is not None:
-        grafico.seek(0)
         st.image(grafico, use_container_width=True)
 
     # --- Botón de envio protegido por password ---

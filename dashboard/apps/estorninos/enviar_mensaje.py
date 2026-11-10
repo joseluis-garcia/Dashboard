@@ -11,6 +11,7 @@ import io
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from zoneinfo import ZoneInfo
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -87,7 +88,7 @@ def crear_grafico(precios_kwh: pd.Series, breaks: list, fecha: date) -> io.Bytes
     buf.seek(0)
     return buf
 
-def calcular_mensaje(destino = "Telegram") -> str:
+def calcular_mensaje(destino = "Telegram") -> tuple[str, io.BytesIO | None]:
     '''
     Calcula el mensaje a enviar a Estorninos con la información relevante del día.
     Obtiene datos de ESIOS para detectar horas con precios de excedentes negativos, precios muy bajos y muy altos. También obtiene la previsión meteorológica de OpenMeteo para incluirla en el mensaje.
@@ -98,7 +99,7 @@ def calcular_mensaje(destino = "Telegram") -> str:
     rango = None  # Se calcula dentro de get_ESIOS_spot para obtener precios del día actual
 
     # codigo para cuando se ejecuta el script el dia anterior y se quiere obtener el mensaje para el dia siguiente
-    tz = timezone(timedelta(hours=1))  # Hora de Madrid (UTC+1)
+    tz = ZoneInfo("Europe/Madrid")  # Hora de Madrid (UTC+1)
     today = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
     start_date = today + timedelta(days=1) # Mañana a las 00:00
     end_date = start_date + timedelta(days=1) - timedelta(seconds=1)
@@ -110,7 +111,7 @@ def calcular_mensaje(destino = "Telegram") -> str:
     
     df_omie, error_omie = get_ESIOS_spot(rango=rango)
     if error_omie:
-        return None, f"No se han podido obtener los precios de ESIOS: {error_omie}"
+        return f"No se han podido obtener los precios de ESIOS: {error_omie}", None
     
     # Convertimos el indice a hora local
     df_omie = costes_regulados(df_omie)

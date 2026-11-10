@@ -133,7 +133,7 @@ def get_indicator(indicator_id: int, date_range: RangoFechas, time_trunc: str = 
 
     print(f"Datos obtenidos para indicador {indicator_id} ({variable}): {len(df)} registros")
     if (len(df) == 0):
-        mensaje = f"No se encontraron datos para el indicador {indicator_id} ({variable}) en el rango de fechas especificado."
+        mensaje = f"No se encontraron datos para el indicador {indicator_id} ({variable}) en el rango de fechas especificado {date_range}."
         return None, mensaje  # Devuelve un DataFrame vacío si no hay datos
     
     # Usamos datetime_utc como columna de tiempo para evitar problemas de horas repetidas en cambio de hora y convertimos en indice
