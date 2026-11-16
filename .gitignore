@@ -149,4 +149,5 @@ data/*.db-journal
 .cache.sqlite
 Revision_Codigo_Dashboard_Energetico.docx
 dashboard.db
+measures.db
 dashboard/data/forecast_tracker.db
