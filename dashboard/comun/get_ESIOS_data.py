@@ -407,7 +407,8 @@ def get_ESIOS_data_from_measurements(conn: sqlite3.Connection, rango: Optional[R
     """
     try:
         if rango is None:
-            # query = 'select d.datetime, d.Eólica, d."Solar Fotovoltaica", d."Demanda real", p."Mercado SPOT" from ESIOS_data as d left join ESIOS_prices as p on d.datetime = p.datetime order by d.datetime'
+            #query = 'select d.datetime, d.Eólica, d."Solar Fotovoltaica", d."Demanda real", p."Mercado SPOT" from ESIOS_data as d left join ESIOS_prices as p on d.datetime = p.datetime order by d.datetime'
+            #Si solo queremos tener en cuenta los periodos caros de guerra de Ucrania e Iran
             query = 'select d.datetime, d.Eólica, d."Solar Fotovoltaica", d."Demanda real", p."Mercado SPOT" from ESIOS_data as d left join ESIOS_prices as p on d.datetime = p.datetime where d.datetime <= "2023-01-01" or d.datetime >= "2026-01-01" order by d.datetime'
             print("QUERY desde get_ESIOS_data_from_measurements", query)
         else:
